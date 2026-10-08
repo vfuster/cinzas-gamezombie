@@ -7,19 +7,30 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/crt.css">
+<link rel="stylesheet" href="css/situacao.css">
 </head>
 <body>
-<div class="wrap">
-  <div class="brand">
-    <div class="brand-left">
-      <h1>CINZAS</h1>
-      <span class="dayspan" id="brandDay"></span>
+<div class="crt-frame">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+  <header class="topbar">
+    <div class="tb-brand"><span class="tb-prompt">&gt;</span> CINZAS</div>
+    <div class="tb-status">
+      <span>SISTEMA: ONLINE <b class="led"></b></span>
+      <span>DIA <span id="tbDay">--</span></span>
+      <span class="tb-local" id="tbLocal">LOCAL: DESCONHECIDO</span>
+      <button id="musicBtn" class="tb-sound" type="button">♪ SOM: OFF</button>
     </div>
-    <div class="brand-right">
-      <button id="musicBtn">♪ SOM: OFF</button>
-    </div>
-  </div>
-  <div id="app"></div>
+  </header>
+
+  <main class="screen" id="app"></main>
+
+  <footer class="botbar">
+    <span class="bb-prompt">&gt; <span class="term-cursor-line">_</span></span>
+    <span class="bb-version">CINZAS v1.0.0</span>
+  </footer>
+  <div class="crt-glitch" aria-hidden="true"></div>
 </div>
 
 <script type="module" src="js/main.js"></script>

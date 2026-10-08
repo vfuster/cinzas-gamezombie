@@ -1,45 +1,56 @@
 import { state } from './state.js';
 
 /* ===========================================================
-   QUADRO DE SOBREVIVENTES (compartilhado, via capability db)
+   QUADRO DE SOBREVIVENTES (local ao navegador, via IndexedDB)
 =========================================================== */
-let dbNS; // undefined = ainda não resolvido, null = indisponível
+const DB_NAME = "cinzas";
+const STORE = "leaderboard";
+let dbPromise = null;
 
-async function getDb(){
-  if(dbNS !== undefined) return dbNS;
-  try{
-    if(window.claude && typeof window.claude.use === "function"){
-      dbNS = await window.claude.use("db");
-    } else {
-      dbNS = null;
-    }
-  }catch(e){ dbNS = null; }
-  return dbNS;
+function openDb(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject)=>{
+    if(typeof indexedDB === "undefined"){ reject(new Error("sem IndexedDB")); return; }
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = ()=>{
+      const store = req.result.createObjectStore(STORE, { keyPath:"id", autoIncrement:true });
+      store.createIndex("day", "day");
+    };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  }).catch(()=> null);
+  return dbPromise;
 }
 
-
 export async function fetchLeaderboard(){
-  const db = await getDb();
+  const db = await openDb();
   if(!db) return null;
-  try{
-    const snap = await db.collection("leaderboard").orderBy("day","desc").limit(30).get();
-    let docs = snap.docs.map(d=>d.data()).filter(d=>d && d.name);
-    docs.sort((a,b)=> (b.day||0) - (a.day||0));
-    return docs.slice(0,6);
-  }catch(e){ return null; }
+  return new Promise(resolve=>{
+    const docs = [];
+    // percorre o índice de dias do maior para o menor
+    const req = db.transaction(STORE, "readonly").objectStore(STORE).index("day").openCursor(null, "prev");
+    req.onsuccess = ()=>{
+      const cur = req.result;
+      if(cur && docs.length < 6){ docs.push(cur.value); cur.continue(); }
+      else resolve(docs);
+    };
+    req.onerror = ()=> resolve(null);
+  });
 }
 
 export async function submitToLeaderboard(cause){
-  const db = await getDb();
+  const db = await openDb();
   if(!db) return;
-  try{
-    await db.collection("leaderboard").add({
+  return new Promise(resolve=>{
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).add({
       name: state.name,
       day: state.day,
       cause: cause || "",
       ts: Date.now()
     });
-  }catch(e){ /* silencioso */ }
+    tx.oncomplete = tx.onerror = tx.onabort = ()=> resolve();
+  });
 }
 
 /* ===========================================================

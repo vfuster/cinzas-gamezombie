@@ -9,10 +9,10 @@ export const NAMES = ["Ronaldo","Marina","Téo","Iris","Batista","Carla","Nando"
    FACÇÕES — grupos recorrentes com reputação e identidade visual
 =========================================================== */
 export const FACTIONS = {
-  comerciantes: { name:"Comerciantes", short:"COM", color:"#c9932b" },
-  andarilhos:   { name:"Andarilhos",   short:"AND", color:"#c23c34" },
-  refugio:      { name:"Refúgio",      short:"REF", color:"#7c8f3f" },
-  milicia:      { name:"Milícia",      short:"MIL", color:"#6e7686" }
+  comerciantes: { name:"Comerciantes", short:"COM", color:"#C99B2E" },
+  andarilhos:   { name:"Andarilhos",   short:"AND", color:"#D13B35" },
+  refugio:      { name:"Refúgio",      short:"REF", color:"#7E866C" },
+  milicia:      { name:"Milícia",      short:"MIL", color:"#6B7D80" }
 };
 
 export function adjustRep(s, faction, amount){

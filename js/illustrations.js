@@ -7,12 +7,12 @@
 function zombieFigure(tx, ty, scale, rot){
   return `<g transform="translate(${tx},${ty}) scale(${scale}) rotate(${rot||0} 30 40)">
     <circle cx="30" cy="11" r="10" fill="currentColor"/>
-    <circle cx="26" cy="8" r="2.4" fill="#0d0f09"/>
-    <circle cx="35" cy="10" r="1.8" fill="#0d0f09"/>
-    <ellipse cx="30" cy="16" rx="3" ry="2" fill="#0d0f09"/>
+    <circle cx="26" cy="8" r="2.4" fill="#080B08"/>
+    <circle cx="35" cy="10" r="1.8" fill="#080B08"/>
+    <ellipse cx="30" cy="16" rx="3" ry="2" fill="#080B08"/>
     <rect x="26" y="19" width="8" height="6" fill="currentColor"/>
     <polygon points="18,25 42,25 46,60 34,54 29,64 24,54 14,58" fill="currentColor"/>
-    <line x1="24" y1="32" x2="31" y2="44" stroke="#0d0f09" stroke-width="1.6"/>
+    <line x1="24" y1="32" x2="31" y2="44" stroke="#080B08" stroke-width="1.6"/>
     <path d="M20,29 L4,17" stroke="currentColor" stroke-width="6.5" fill="none" stroke-linecap="round"/>
     <path d="M40,31 L55,44" stroke="currentColor" stroke-width="6.5" fill="none" stroke-linecap="round"/>
     <rect x="22" y="60" width="8" height="32" fill="currentColor" transform="rotate(5 26 60)"/>
@@ -23,19 +23,19 @@ function zombieFigure(tx, ty, scale, rot){
 const ICONS = {
   title: {tone:"danger", svg:`<svg viewBox="0 0 240 140">
     <circle cx="190" cy="26" r="12" fill="currentColor" opacity="0.35"/>
-    <circle cx="196" cy="21" r="10" fill="#0d0f09" opacity="0.9"/>
+    <circle cx="196" cy="21" r="10" fill="#080B08" opacity="0.9"/>
     ${zombieFigure(70, 10, 1.9, -3)}
   </svg>`},
   start: {tone:"danger", svg:`<svg viewBox="0 0 240 140">
     <circle cx="190" cy="26" r="12" fill="currentColor" opacity="0.35"/>
-    <circle cx="196" cy="21" r="10" fill="#0d0f09" opacity="0.9"/>
+    <circle cx="196" cy="21" r="10" fill="#080B08" opacity="0.9"/>
     ${zombieFigure(70, 10, 1.9, -3)}
   </svg>`},
   mercado: {tone:"dim", svg:`<svg viewBox="0 0 240 100">
     <rect x="120" y="60" width="90" height="40" fill="currentColor" opacity="0.55"/>
-    <rect x="132" y="72" width="14" height="16" fill="#0d0f09"/>
-    <rect x="152" y="72" width="14" height="16" fill="#0d0f09"/>
-    <rect x="172" y="72" width="14" height="16" fill="#0d0f09"/>
+    <rect x="132" y="72" width="14" height="16" fill="#080B08"/>
+    <rect x="152" y="72" width="14" height="16" fill="#080B08"/>
+    <rect x="172" y="72" width="14" height="16" fill="#080B08"/>
     ${zombieFigure(20, 22, 1.15, 4)}
   </svg>`},
   floresta: {tone:"safe", svg:`<svg viewBox="0 0 240 100">
@@ -50,13 +50,13 @@ const ICONS = {
   </svg>`},
   abrigo_noturno: {tone:"dim", svg:`<svg viewBox="0 0 240 100">
     <circle cx="180" cy="28" r="16" fill="currentColor"/>
-    <circle cx="188" cy="22" r="14" fill="#0d0f09"/>
+    <circle cx="188" cy="22" r="14" fill="#080B08"/>
     <circle cx="40" cy="18" r="1.6" fill="currentColor"/>
     <circle cx="70" cy="10" r="1.3" fill="currentColor"/>
     <circle cx="110" cy="22" r="1.6" fill="currentColor"/>
     <circle cx="20" cy="35" r="1.3" fill="currentColor"/>
     <polygon points="20,100 60,60 100,100" fill="currentColor" opacity="0.9"/>
-    <rect x="55" y="82" width="10" height="18" fill="#0d0f09"/>
+    <rect x="55" y="82" width="10" height="18" fill="#080B08"/>
   </svg>`},
   radio: {tone:"neutral", svg:`<svg viewBox="0 0 240 100">
     <line x1="120" y1="20" x2="90" y2="96" stroke="currentColor" stroke-width="3"/>
@@ -121,8 +121,8 @@ const ICONS = {
   </svg>`},
   escassez: {tone:"neutral", svg:`<svg viewBox="0 0 240 100">
     <polygon points="80,92 120,40 160,92" fill="currentColor" opacity="0.75"/>
-    <rect x="106" y="68" width="12" height="12" fill="#c9932b"/>
-    <circle cx="112" cy="74" r="18" fill="#c9932b" opacity="0.12"/>
+    <rect x="106" y="68" width="12" height="12" fill="#C99B2E"/>
+    <circle cx="112" cy="74" r="18" fill="#C99B2E" opacity="0.12"/>
   </svg>`},
   ferido: {tone:"danger", svg:`<svg viewBox="0 0 240 100">
     <rect x="100" y="35" width="40" height="14" fill="currentColor" transform="rotate(45 120 42)"/>
@@ -143,9 +143,9 @@ const ICONS = {
   </svg>`},
   death: {tone:"danger", svg:`<svg viewBox="0 0 240 100">
     <circle cx="120" cy="48" r="34" fill="currentColor"/>
-    <circle cx="107" cy="44" r="7" fill="#0d0f09"/>
-    <circle cx="133" cy="44" r="7" fill="#0d0f09"/>
-    <polygon points="120,54 114,64 126,64" fill="#0d0f09"/>
+    <circle cx="107" cy="44" r="7" fill="#080B08"/>
+    <circle cx="133" cy="44" r="7" fill="#080B08"/>
+    <polygon points="120,54 114,64 126,64" fill="#080B08"/>
     <rect x="102" y="74" width="6" height="10" fill="currentColor"/>
     <rect x="114" y="76" width="6" height="12" fill="currentColor"/>
     <rect x="126" y="76" width="6" height="12" fill="currentColor"/>
@@ -153,8 +153,8 @@ const ICONS = {
   </svg>`},
   trade: {tone:"neutral", svg:`<svg viewBox="0 0 240 100">
     <rect x="90" y="52" width="34" height="30" fill="currentColor"/>
-    <line x1="90" y1="64" x2="124" y2="64" stroke="#0d0f09" stroke-width="2"/>
-    <line x1="107" y1="52" x2="107" y2="82" stroke="#0d0f09" stroke-width="2"/>
+    <line x1="90" y1="64" x2="124" y2="64" stroke="#080B08" stroke-width="2"/>
+    <line x1="107" y1="52" x2="107" y2="82" stroke="#080B08" stroke-width="2"/>
     ${zombieFigure(140, 18, 0.85, -6)}
     <circle cx="45" cy="60" r="9" fill="currentColor" opacity="0.7"/>
     <rect x="35" y="69" width="20" height="26" fill="currentColor" opacity="0.7"/>

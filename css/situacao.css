@@ -1,0 +1,121 @@
+/* Telas de situação e consequência (usa a moldura de crt.css) */
+.screen.sit{ align-items:stretch; padding:16px 20px 8px; gap:14px; }
+.tb-sound{
+  margin-left:14px; background:transparent; border:1px solid rgba(201,196,168,.35); color:var(--ink-dim);
+  font:inherit; font-size:11px; letter-spacing:2px; padding:3px 9px; cursor:pointer;
+}
+.tb-sound.on{ color:var(--amber); border-color:rgba(201,155,46,.6); }
+
+/* ---------- painel de status ---------- */
+.status{
+  display:grid; grid-template-columns:1fr 1fr; gap:6px 26px; padding:14px 16px;
+  border:1px solid rgba(201,196,168,.3); background:rgba(16,20,15,.55); position:relative;
+}
+.status-head{ grid-column:1/-1; display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; padding-bottom:8px; border-bottom:1px dashed rgba(201,196,168,.28); }
+.st-name{ font-size:12px; letter-spacing:2px; color:var(--ink); }
+.st-name .sep{ color:var(--ink-dim); margin:0 6px; }
+.st-day{ font-family:'Bebas Neue', sans-serif; font-size:26px; letter-spacing:3px; color:var(--amber); line-height:1; text-shadow:0 0 10px rgba(201,155,46,.3); }
+.stat{ display:grid; grid-template-columns:70px 1fr 30px; align-items:center; gap:10px; font-size:11px; letter-spacing:1.5px; }
+.stat .lbl{ color:var(--ink-dim); text-transform:uppercase; }
+.stat .val{ text-align:right; color:var(--ink); }
+.seg{ position:relative; height:12px; border:1px solid rgba(201,196,168,.3); background:rgba(0,0,0,.5); padding:1px; }
+.seg .f{ height:100%; transition:width .9s cubic-bezier(.2,.8,.2,1); }
+.seg::after{
+  content:""; position:absolute; inset:1px; pointer-events:none;
+  background:repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(8,11,8,.95) calc(10% - 2px) 10%);
+}
+.stat.low .seg .f{ animation:lowPulse 1.1s ease-in-out infinite; }
+.stat.low .val{ color:var(--blood-bright); }
+@keyframes lowPulse{ 50%{ opacity:.45; } }
+.rep{ grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; padding-top:10px; border-top:1px dashed rgba(201,196,168,.28); font-size:10.5px; letter-spacing:1.5px; }
+.rep .lbl{ color:var(--ink-dim); margin-right:2px; }
+.rep-chip{ padding:2px 8px; border:1px solid currentColor; opacity:.9; }
+.crew{ grid-column:1/-1; font-size:11px; letter-spacing:1px; color:var(--toxic); }
+.crew::before{ content:"▸ COM VOCÊ: "; color:var(--ink-dim); }
+
+/* ---------- cena ---------- */
+.scene{ position:relative; border:1px solid rgba(201,196,168,.3); background:rgba(16,20,15,.55); }
+.scene::before{ content:""; position:absolute; top:-1px; left:-1px; width:44%; height:2px; background:var(--blood-bright); box-shadow:0 0 10px var(--blood-bright); z-index:3; }
+.viewport{
+  position:relative; height:clamp(150px, 26vw, 210px); overflow:hidden; border-bottom:1px solid rgba(201,196,168,.3);
+  background:
+    radial-gradient(ellipse at 70% 30%, rgba(209,59,53,.28), transparent 60%),
+    linear-gradient(180deg, #14090a, #080B08);
+}
+.viewport .illustration{ position:absolute; inset:0; height:100%; margin:0; border:0; background:transparent; }
+.viewport .illustration svg{ width:100%; height:100%; opacity:.9; filter:drop-shadow(0 0 8px rgba(209,59,53,.35)); }
+.viewport::after{ /* escurecimento nas bordas */
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse at center, transparent 45%, rgba(8,11,8,.85) 100%);
+}
+.vp-tag{
+  position:absolute; z-index:2; top:10px; left:12px; font-size:10.5px; letter-spacing:2px; color:var(--ink);
+  background:rgba(8,11,8,.75); border:1px solid rgba(201,196,168,.35); padding:3px 9px;
+}
+.vp-rec{ position:absolute; z-index:2; top:10px; right:12px; font-size:10.5px; letter-spacing:2px; color:var(--blood-bright); }
+.vp-rec::before{ content:"●"; margin-right:6px; animation:lowPulse 1.4s ease-in-out infinite; }
+.vp-vc{ position:absolute; z-index:2; width:12px; height:12px; border:2px solid var(--ink); opacity:.6; }
+.vp-vc.a{ left:8px; bottom:8px; border-right:0; border-top:0; } .vp-vc.b{ right:8px; bottom:8px; border-left:0; border-top:0; }
+
+.scene-body{ padding:18px 20px 20px; }
+.scene-kicker{ font-size:11px; letter-spacing:3px; color:var(--blood-bright); margin-bottom:6px; }
+.scene-h{ font-family:'Bebas Neue', sans-serif; font-weight:400; font-size:clamp(30px, 6vw, 40px); letter-spacing:2px; line-height:1; margin:0 0 14px; color:var(--ink); text-shadow:0 0 14px rgba(209,59,53,.25); }
+.scene-p{ font-size:14px; line-height:1.8; color:var(--ink); min-height:7.2em; white-space:pre-line; }
+.scene-p .caret{ display:inline-block; width:8px; height:14px; margin-left:2px; vertical-align:-2px; background:var(--toxic); animation:termBlink 1s steps(1) infinite; }
+.ambient{ font-size:11.5px; color:var(--ink-dim); font-style:italic; margin-top:12px; letter-spacing:.5px; }
+.ambient::before{ content:"// "; color:var(--toxic); font-style:normal; }
+
+/* ---------- escolhas ---------- */
+.options{ margin-top:18px; display:flex; flex-direction:column; gap:8px; }
+.opt{
+  position:relative; display:grid; grid-template-columns:34px 1fr; gap:6px; align-items:start; text-align:left; width:100%;
+  padding:13px 16px 13px 12px; background:rgba(8,11,8,.55); color:var(--ink); cursor:pointer;
+  border:1px solid rgba(201,196,168,.28); font-family:'IBM Plex Mono', monospace; font-size:13.5px; line-height:1.5;
+  transition:border-color .18s, background .18s, box-shadow .18s, transform .1s;
+}
+.opt .k{ color:var(--blood-bright); letter-spacing:1px; }
+.opt::before{ content:"▶"; position:absolute; left:-1px; top:50%; transform:translate(-100%,-50%); color:var(--blood-bright); opacity:0; transition:opacity .15s, transform .15s; font-size:11px; padding-right:4px; }
+.opt:hover, .opt:focus-visible{
+  outline:none; border-color:var(--blood-bright); background:rgba(122,36,32,.22);
+  box-shadow:0 0 16px rgba(209,59,53,.28), inset 0 0 12px rgba(0,0,0,.5);
+}
+.opt:hover::before, .opt:focus-visible::before{ opacity:1; transform:translate(-4px,-50%); }
+.opt:hover .k, .opt:focus-visible .k{ color:var(--ink); text-shadow:0 0 8px rgba(209,59,53,.8); }
+.opt:active{ transform:scale(.995); }
+.opt.hidden{ opacity:0; transform:translateY(6px); }
+.opt{ animation:optIn .35s ease-out both; }
+@keyframes optIn{ from{ opacity:0; transform:translateY(8px); } }
+
+/* ---------- consequência ---------- */
+.result{ margin-top:6px; padding:14px 16px; border:1px dashed rgba(201,196,168,.35); background:rgba(8,11,8,.5); }
+.result-h{ font-size:11px; letter-spacing:3px; color:var(--amber); margin-bottom:10px; }
+.result-p{ font-size:13.5px; line-height:1.75; color:var(--ink-dim); font-style:italic; }
+.deltas2{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.delta{ font-size:11.5px; letter-spacing:1.5px; padding:4px 10px; border:1px solid currentColor; animation:optIn .4s ease-out both; }
+.delta.up{ color:var(--toxic); } .delta.down{ color:var(--blood-bright); }
+.sit .start-btn{ width:100%; max-width:none; margin-top:18px; }
+
+/* ---------- estado crítico ---------- */
+.crit .scene{ border-color:var(--blood-bright); animation:critPulse 2.4s ease-in-out infinite; }
+.crit .viewport{ filter:saturate(1.3); }
+.crit .vp-tag{ color:var(--blood-bright); border-color:var(--blood-bright); }
+@keyframes critPulse{ 0%,100%{ box-shadow:0 0 0 rgba(209,59,53,0); } 50%{ box-shadow:0 0 22px rgba(209,59,53,.3), inset 0 0 26px rgba(209,59,53,.12); } }
+.crit-alert{ display:none; font-size:11px; letter-spacing:3px; color:var(--blood-bright); text-align:center; padding:6px; border:1px solid var(--blood-bright); background:rgba(122,36,32,.18); animation:lowPulse 1.2s ease-in-out infinite; }
+.crit .crit-alert{ display:block; }
+
+@media (max-width:560px){
+  .status{ grid-template-columns:1fr; }
+  .scene-body{ padding:16px 14px; }
+  .tb-sound{ margin-left:8px; }
+}
+@media (prefers-reduced-motion: reduce){ .opt, .delta, .crit .scene, .stat.low .seg .f, .vp-rec::before, .crit-alert{ animation:none; } }
+
+/* ---------- ajustes de integração ---------- */
+.record-line{ margin-top:16px; font-size:11px; letter-spacing:2px; color:var(--ink-dim); text-align:center; }
+.screen.sit .record-line{ text-align:left; }
+.end-body .scene-h{ color:var(--blood-bright); }
+.sit .registry{ max-width:none; margin:0; }
+.stat .f.fill-saude{ background:linear-gradient(90deg,#7a2420,var(--blood-bright)); }
+.stat .f.fill-comida{ background:linear-gradient(90deg,#50553f,var(--toxic)); }
+.stat .f.fill-municao{ background:linear-gradient(90deg,#46565a,var(--steel)); }
+.stat .f.fill-moral{ background:linear-gradient(90deg,#8a6a1f,var(--amber)); }

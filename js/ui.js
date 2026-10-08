@@ -1,5 +1,6 @@
 import { toggleMusic, isMusicOn } from './audio.js';
 import { renderIllustration } from './illustrations.js';
+import { buildHero, runBoot } from './hero.js';
 import { state, newGame, FACTIONS, randInt, pick, rollEffects, applyEffects, checkDeath } from './state.js';
 import { OPENING_EVENTS, AMBIENT_LINES, MILESTONES, pickEvent } from './events.js';
 import { fetchLeaderboard, submitToLeaderboard, loadRecord, saveRecord } from './storage.js';
@@ -10,35 +11,40 @@ function escapeHtml(str){
   }[ch]));
 }
 
-/* Cor de identificação estável por nome (hash simples -> matiz). */
-function nameColor(name){
-  let hash = 0;
-  for(let i=0;i<name.length;i++){ hash = (hash*31 + name.charCodeAt(i)) % 360; }
-  return `hsl(${hash},55%,45%)`;
-}
-function avatarHTML(name){
-  return `<span class="avatar" style="background:${nameColor(name)}">${escapeHtml(name.charAt(0).toUpperCase())}</span>`;
-}
+const pad = n => String(n).padStart(2, "0");
 
-function repRowHTML(s){
-  const chips = Object.keys(FACTIONS).filter(f => s.rep[f] !== 0).map(f=>{
+/* Rótulo de local mostrado na barra superior e na cena, por ícone de evento. */
+const PLACES = {
+  title:"DESCONHECIDO", start:"DESCONHECIDO", mercado:"MERCADO ABANDONADO", floresta:"FLORESTA",
+  abrigo_noturno:"ABRIGO NOTURNO", abrigo:"ABRIGO", radio:"SINAL DE RÁDIO", resgate:"PEDIDO DE AJUDA",
+  estrada:"ESTRADA", rivais:"TERRITÓRIO RIVAL", zumbis:"ZONA INFECTADA", desconhecido:"DESCONHECIDO",
+  escassez:"ESCASSEZ", ferido:"FERIDO", final:"DESTINO", death:"FIM DA LINHA", trade:"ENCONTRO NA ESTRADA",
+  storm:"TEMPESTADE", loss:"PERDA"
+};
+
+function repChipsHTML(s){
+  return Object.keys(FACTIONS).filter(f => s.rep[f] !== 0).map(f=>{
     const fac = FACTIONS[f]; const r = s.rep[f]; const sign = r>0 ? "+" : "";
-    return `<span class="rep-chip" style="border-color:${fac.color}; color:${fac.color}">${fac.short} ${sign}${r}</span>`;
+    return `<span class="rep-chip" style="color:${fac.color}">${fac.short} ${sign}${r}</span>`;
   }).join("");
-  return chips ? `<div class="rep-row">${chips}</div>` : "";
 }
 
 function renderLeaderboardHTML(list){
-  if(list === null){
-    return `<div class="leaderboard"><div class="lb-title">QUADRO DE SOBREVIVENTES</div><div class="lb-empty">Indisponível nesta sessão.</div></div>`;
-  }
-  if(!list.length){
-    return `<div class="leaderboard"><div class="lb-title">QUADRO DE SOBREVIVENTES</div><div class="lb-empty">Ninguém registrou uma tentativa ainda. Seja o primeiro.</div></div>`;
-  }
-  const rows = list.map((r,i)=>{
-    return `<div class="lb-row"><span class="lb-rank">${i+1}</span><span class="lb-name">${escapeHtml(r.name)}</span><span class="lb-status">Dia ${r.day}</span></div>`;
-  }).join("");
-  return `<div class="leaderboard"><div class="lb-title">QUADRO DE SOBREVIVENTES</div>${rows}<div class="lb-note">Visível para todos que abrirem este jogo.</div></div>`;
+  const head = `<i class="rc"></i><h2 class="reg-title"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M8 1.5a3 3 0 0 0-3 3V6H4v7h8V6h-1V4.5a3 3 0 0 0-3-3Zm0 1.4a1.6 1.6 0 0 1 1.6 1.6V6H6.4V4.5A1.6 1.6 0 0 1 8 2.9Z" fill="currentColor"/></svg>REGISTRO DE SOBREVIVENTES</h2>`;
+  const foot = `<div class="reg-foot"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.5 3.5h5l1.2 1.5h6.8v7.5h-13z" fill="currentColor"/></svg>REGISTRO SALVO LOCALMENTE</div>`;
+  let body;
+  if(list === null) body = `<li class="reg-empty">REGISTRO INDISPONÍVEL NESTA SESSÃO.</li>`;
+  else if(!list.length) body = `<li class="reg-empty">NENHUM SOBREVIVENTE REGISTRADO.</li>`;
+  else body = list.slice(0,3).map((r,i)=>
+    `<li><span class="n">#${pad(i+1)}</span><span>${escapeHtml(String(r.name).toUpperCase())}</span><span class="d">DIA ${pad(r.day)}</span></li>`
+  ).join("");
+  return `${head}<ol class="reg-list">${body}</ol>${foot}`;
+}
+
+async function fillRegistry(){
+  const list = await fetchLeaderboard();
+  const slot = document.getElementById("lbSlot");
+  if(slot) slot.innerHTML = renderLeaderboardHTML(list);
 }
 
 /* ===========================================================
@@ -46,49 +52,96 @@ function renderLeaderboardHTML(list){
 =========================================================== */
 const statNames = {saude:"Saúde", comida:"Comida", municao:"Munição", moral:"Moral"};
 const app = document.getElementById("app");
-const brandDay = document.getElementById("brandDay");
+const tbDay = document.getElementById("tbDay");
+const tbLocal = document.getElementById("tbLocal");
+let typingTimer = null;
 
 function fmtDelta(k,v){
   const sign = v > 0 ? "+" : "";
-  return `${sign}${v} ${statNames[k]}`;
+  return `${sign}${v} ${statNames[k].toUpperCase()}`;
+}
+
+/* Prepara o contêiner e a barra superior para uma tela. */
+function setScreen(kind, place, opts = {}){
+  clearInterval(typingTimer);
+  app.className = "screen" + (kind === "start" ? "" : " sit") + (opts.critical ? " crit" : "");
+  tbDay.textContent = state && kind !== "start" ? pad(state.day) : "--";
+  tbLocal.textContent = "LOCAL: " + (place || "DESCONHECIDO");
+  window.scrollTo({ top:0 });
+}
+
+/* Texto digitado letra a letra; clique pula a animação. */
+function typeText(el, text){
+  clearInterval(typingTimer);
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){ el.textContent = text; return; }
+  let i = 0;
+  const finish = ()=>{ clearInterval(typingTimer); el.textContent = text; };
+  typingTimer = setInterval(()=>{
+    i += 2;
+    if(i >= text.length){ finish(); return; }
+    el.innerHTML = escapeHtml(text.slice(0, i)) + `<span class="caret"></span>`;
+  }, 16);
+  el.onclick = finish;
 }
 
 function renderHUD(){
-  if(!state) { brandDay.textContent = ""; return ""; }
-  brandDay.textContent = `DIA ${state.day}`;
-  const rows = ["saude","comida","municao","moral"].map(k=>{
-    return `<div class="stat-row">
-      <div class="stat-name">${statNames[k]}</div>
-      <div class="stat-bar"><div class="stat-fill fill-${k}" style="width:${state[k]}%"></div></div>
-      <div class="stat-val">${state[k]}</div>
-    </div>`;
-  }).join("");
-  const companionsHTML = state.companions.map(n=>`${avatarHTML(n)}${escapeHtml(n)}`).join(", ");
-  return `<div class="hud">
-    <div class="hud-top">
-      <div class="day-label">DIA ${state.day}</div>
-      <div class="name-label">${escapeHtml(state.name)}${state.companions.length ? " · " + companionsHTML : ""}</div>
+  if(!state) return "";
+  const rows = ["saude","comida","municao","moral"].map(k=>`
+    <div class="stat${state[k] < 25 ? " low" : ""}">
+      <span class="lbl">${statNames[k]}</span>
+      <div class="seg"><div class="f fill-${k}" style="width:${state[k]}%"></div></div>
+      <span class="val">${state[k]}</span>
+    </div>`).join("");
+  const rep = repChipsHTML(state);
+  return `<section class="status" aria-label="Status do sobrevivente">
+    <div class="status-head">
+      <span class="st-name">${escapeHtml(state.name.toUpperCase())}</span>
+      <span class="st-day">DIA ${pad(state.day)}</span>
     </div>
     ${rows}
-    ${repRowHTML(state)}
+    ${state.companions.length ? `<div class="crew">${state.companions.map(n=>escapeHtml(n.toUpperCase())).join(", ")}</div>` : ""}
+    ${rep ? `<div class="rep"><span class="lbl">REPUTAÇÃO</span>${rep}</div>` : ""}
+  </section>`;
+}
+
+function viewportHTML(icon){
+  return `<div class="viewport">
+    ${renderIllustration(icon)}
+    <span class="vp-tag">LOCAL: ${PLACES[icon] || "DESCONHECIDO"}</span>
+    <span class="vp-rec">REC</span>
+    <i class="vp-vc a"></i><i class="vp-vc b"></i>
   </div>`;
 }
 
 export async function renderStart(record){
+  setScreen("start");
   app.innerHTML = `
-    <div class="panel center-panel">
-      ${renderIllustration("title")}
-      <div class="big-title">CINZAS</div>
-      <div class="sub-title">SOBREVIVA AO APOCALIPSE</div>
-      <p>Sem fim marcado. Cada partida começa em um lugar diferente, com situações sorteadas — mercados, estradas, gente boa e gente perigosa. Você sobrevive até não conseguir mais. Veja quem dura mais tempo.</p>
-      <input class="name-input" id="nameInput" placeholder="Nome do sobrevivente (opcional)" maxlength="20">
-      <div>
-        <button class="continue-btn" id="beginBtn" style="max-width:280px;">COMEÇAR</button>
-      </div>
-      ${record ? `<div class="record">Seu recorde: sobreviveu até o Dia ${record.day}${record.cause ? " — " + escapeHtml(record.cause) : ""}</div>` : ""}
-      <div id="lbSlot"><div class="leaderboard"><div class="lb-title">QUADRO DE SOBREVIVENTES</div><div class="lb-empty">Carregando…</div></div></div>
-    </div>
+    <section class="hero">
+      <div class="boot" id="boot" aria-hidden="true"></div>
+      <svg class="hero-art" id="heroArt" viewBox="0 0 800 340" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+      <div class="hero-fade"></div>
+      <h1 class="logo">CINZAS</h1>
+    </section>
+    <div class="tagline"><span class="rule"></span><span class="tag-text">SOBREVIVA AO APOCALIPSE</span><span class="rule"></span></div>
+    <p class="quote">“Não existe um destino.<br>Existe apenas o próximo dia.”</p>
+    <label class="term-field" for="nameInput">
+      <span class="term-prompt">&gt;</span>
+      <span class="term-input-wrap">
+        <input class="name-input" id="nameInput" placeholder="NOME DO SOBREVIVENTE" maxlength="20" autocomplete="off" spellcheck="false" aria-label="Nome do sobrevivente (opcional)">
+        <span class="term-overlay" aria-hidden="true"><span class="term-mirror" id="nameMirror"></span><span class="term-cursor">_</span></span>
+      </span>
+    </label>
+    <button class="continue-btn start-btn" id="beginBtn">▶ INICIAR SOBREVIVÊNCIA</button>
+    ${record ? `<div class="record-line">SEU RECORDE: DIA ${pad(record.day)}${record.cause ? " — " + escapeHtml(record.cause.toUpperCase()) : ""}</div>` : ""}
+    <section class="registry" id="lbSlot">${renderLeaderboardHTML([]).replace("NENHUM SOBREVIVENTE REGISTRADO.", "CARREGANDO…")}</section>
   `;
+  buildHero();
+  runBoot();
+  const nameInputEl = document.getElementById("nameInput");
+  const nameMirror = document.getElementById("nameMirror");
+  const syncCursor = ()=>{ nameMirror.textContent = nameInputEl.value || nameInputEl.placeholder; };
+  nameInputEl.addEventListener("input", syncCursor);
+  syncCursor();
   document.getElementById("beginBtn").onclick = ()=>{
     if(!isMusicOn()){ toggleMusic(); }
     const nameVal = document.getElementById("nameInput").value.trim();
@@ -96,9 +149,7 @@ export async function renderStart(record){
     state.currentEvent = pick(OPENING_EVENTS);
     renderEventScene();
   };
-  const list = await fetchLeaderboard();
-  const slot = document.getElementById("lbSlot");
-  if(slot) slot.innerHTML = renderLeaderboardHTML(list);
+  fillRegistry();
 }
 
 function renderEventScene(){
@@ -107,28 +158,33 @@ function renderEventScene(){
   const text = typeof ev.text === "function" ? ev.text(state) : ev.text;
   const rawChoices = typeof ev.choices === "function" ? ev.choices(state) : ev.choices;
   const choices = rawChoices.filter(c => !c.condition || c.condition(state));
-  const critical = (state.saude < 25 || state.comida < 25) ? " critical" : "";
-  const ambient = Math.random() < 0.4 ? `<div class="ambient-line">${pick(AMBIENT_LINES)}</div>` : "";
+  const critical = state.saude < 25 || state.comida < 25;
+  const ambient = Math.random() < 0.4 ? `<div class="ambient">${pick(AMBIENT_LINES)}</div>` : "";
 
   const letters = ["A","B","C","D"];
   const choicesHTML = choices.map((c,i)=>`
-    <button class="choice-btn" data-idx="${i}"><span class="k">${letters[i]}.</span>${c.label}</button>
+    <button class="opt" data-idx="${i}" style="animation-delay:${0.4 + 0.15*i}s"><span class="k">[${letters[i]}]</span><span>${c.label}</span></button>
   `).join("");
 
+  setScreen("scene", PLACES[ev.icon], { critical });
   app.innerHTML = `
+    <div class="crit-alert">⚠ CONDIÇÃO CRÍTICA — SAÚDE OU COMIDA ABAIXO DE 25</div>
     ${renderHUD()}
-    <div class="panel${critical}">
-      ${renderIllustration(ev.icon)}
-      ${ambient}
-      <h2 class="scene-title">${title}</h2>
-      <div class="scene-text">${text}</div>
-      ${state.companions.map(n=>`<div class="companion-tag">${avatarHTML(n)}${escapeHtml(n)} está com você</div>`).join("")}
-      <div class="choices">${choicesHTML}</div>
-    </div>
+    <section class="scene">
+      ${viewportHTML(ev.icon)}
+      <div class="scene-body">
+        <div class="scene-kicker">// SITUAÇÃO</div>
+        <h2 class="scene-h">${title}</h2>
+        <div class="scene-p" id="sceneText"></div>
+        ${ambient}
+        <div class="options">${choicesHTML}</div>
+      </div>
+    </section>
   `;
+  typeText(document.getElementById("sceneText"), text);
 
   choices.forEach((c,i)=>{
-    document.querySelector(`.choice-btn[data-idx="${i}"]`).onclick = ()=> handleChoice(c);
+    document.querySelector(`.opt[data-idx="${i}"]`).onclick = ()=> handleChoice(c);
   });
 }
 
@@ -162,21 +218,26 @@ function handleChoice(choice){
 
 function renderConsequence(){
   const p = state.pending;
-  const chips = p.deltas.length ? `<div class="deltas">${
-    p.deltas.map(d=>`<span class="chip ${d.v>0?'up':'down'}">${fmtDelta(d.k,d.v)}</span>`).join("")
+  const chips = p.deltas.length ? `<div class="deltas2">${
+    p.deltas.map(d=>`<span class="delta ${d.v>0?'up':'down'}">${fmtDelta(d.k,d.v)}</span>`).join("")
   }</div>` : "";
 
+  setScreen("scene", PLACES[p.sceneIcon]);
   app.innerHTML = `
     ${renderHUD()}
-    <div class="panel">
-      ${renderIllustration(p.sceneIcon)}
-      <h2 class="scene-title">${p.sceneTitle}</h2>
-      <div class="consequence">
-        ${p.text ? `<div class="consequence-text">${p.text}</div>` : ""}
-        ${chips}
+    <section class="scene">
+      ${viewportHTML(p.sceneIcon)}
+      <div class="scene-body">
+        <div class="scene-kicker">// RESULTADO</div>
+        <h2 class="scene-h">${p.sceneTitle}</h2>
+        <div class="result">
+          <div class="result-h">RELATÓRIO</div>
+          ${p.text ? `<div class="result-p">${p.text}</div>` : ""}
+          ${chips}
+        </div>
+        <button class="continue-btn start-btn" id="nextBtn">▶ CONTINUAR</button>
       </div>
-      <button class="continue-btn" id="nextBtn">CONTINUAR</button>
-    </div>
+    </section>
   `;
 
   document.getElementById("nextBtn").onclick = async ()=>{
@@ -214,14 +275,17 @@ function advanceDay(){
 }
 
 function renderMilestone(text){
+  setScreen("scene", "PASSAGEM DE TEMPO");
   app.innerHTML = `
     ${renderHUD()}
-    <div class="panel center-panel">
-      ${renderIllustration("abrigo_noturno")}
-      <div class="end-badge mid">PASSAGEM DE TEMPO</div>
-      <p>${text}</p>
-      <button class="continue-btn" id="nextBtn" style="max-width:280px;">CONTINUAR</button>
-    </div>
+    <section class="scene">
+      ${viewportHTML("abrigo_noturno").replace(/LOCAL: [^<]*/, "LOCAL: PASSAGEM DE TEMPO")}
+      <div class="scene-body">
+        <div class="scene-kicker">// PASSAGEM DE TEMPO</div>
+        <div class="scene-p" style="min-height:0">${text}</div>
+        <button class="continue-btn start-btn" id="nextBtn">▶ CONTINUAR</button>
+      </div>
+    </section>
   `;
   document.getElementById("nextBtn").onclick = ()=> drawNextEvent();
 }
@@ -241,20 +305,21 @@ async function renderDeath(type, override){
   const record = await loadRecord();
   await submitToLeaderboard(c.title);
 
+  setScreen("scene", PLACES.death);
   app.innerHTML = `
     ${renderHUD()}
-    <div class="panel center-panel">
-      ${renderIllustration("death")}
-      <div class="end-badge">FIM DE JOGO · DIA ${state.day}</div>
-      <div class="big-title" style="font-size:38px;">${c.title}</div>
-      <p>${c.text}</p>
-      <div class="record">Recorde salvo: Dia ${record.day}</div>
-      <button class="continue-btn" id="restartBtn" style="max-width:280px; margin-top:18px;">TENTAR NOVAMENTE</button>
-      <div id="lbSlot"><div class="leaderboard"><div class="lb-title">QUADRO DE SOBREVIVENTES</div><div class="lb-empty">Carregando…</div></div></div>
-    </div>
+    <section class="scene">
+      ${viewportHTML("death")}
+      <div class="scene-body end-body">
+        <div class="end-badge">FIM DE JOGO · DIA ${pad(state.day)}</div>
+        <h2 class="scene-h">${c.title}</h2>
+        <div class="scene-p" style="min-height:0">${c.text}</div>
+        <div class="record-line">RECORDE SALVO: DIA ${pad(record.day)}</div>
+        <button class="continue-btn start-btn" id="restartBtn">▶ TENTAR NOVAMENTE</button>
+      </div>
+    </section>
+    <section class="registry" id="lbSlot">${renderLeaderboardHTML([]).replace("NENHUM SOBREVIVENTE REGISTRADO.", "CARREGANDO…")}</section>
   `;
   document.getElementById("restartBtn").onclick = ()=> renderStart(record);
-  const list = await fetchLeaderboard();
-  const slot = document.getElementById("lbSlot");
-  if(slot) slot.innerHTML = renderLeaderboardHTML(list);
+  fillRegistry();
 }
