@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinzas — teste desafio do dia e álbum</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/crt.css">
+<link rel="stylesheet" href="css/situacao.css">
+<link rel="stylesheet" href="css/cenas.css">
+<style>
+  h1{ font-family:'Bebas Neue', sans-serif; font-weight:400; letter-spacing:4px; text-align:center; color:var(--ink); margin:8px 0 14px; }
+  .tabs{ display:flex; justify-content:center; gap:8px; margin-bottom:18px; }
+  .tab{ background:transparent; border:1px solid rgba(201,196,168,.3); color:var(--ink-dim); font:inherit; font-size:12px; letter-spacing:3px; padding:9px 18px; cursor:pointer; }
+  .tab.on{ color:var(--blood-bright); border-color:var(--blood-bright); background:rgba(122,36,32,.2); }
+  .page{ max-width:1000px; margin:0 auto; display:none; }
+  .page.on{ display:block; }
+  .grid2{ display:grid; grid-template-columns:minmax(300px, 1fr) minmax(300px, 1fr); gap:18px; align-items:start; }
+  @media (max-width:760px){ .grid2{ grid-template-columns:1fr; } }
+  .stack{ display:flex; flex-direction:column; gap:18px; }
+  .box{ border:1px solid rgba(201,196,168,.3); background:rgba(16,20,15,.55); padding:18px 20px; }
+  .box h2{ margin:0 0 12px; font-size:11px; letter-spacing:3px; color:var(--amber); font-weight:600; }
+  .note{ font-size:11px; color:var(--ink-dim); line-height:1.7; margin:10px 0 0; }
+  .btn{ background:transparent; border:1px solid rgba(201,196,168,.35); color:var(--ink-dim); font:inherit; font-size:11px; letter-spacing:2px; padding:9px 12px; cursor:pointer; text-decoration:none; text-align:center; }
+  .btn:hover{ color:var(--ink); border-color:var(--ink); }
+  .btns{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  input, textarea{ background:rgba(0,0,0,.4); border:1px solid rgba(201,196,168,.35); color:var(--ink); font:inherit; font-size:12.5px; padding:7px 10px; width:100%; }
+  textarea{ min-height:96px; resize:vertical; line-height:1.6; }
+  .row{ display:grid; grid-template-columns:90px 1fr; gap:10px; align-items:center; margin-bottom:10px; font-size:11px; letter-spacing:2px; color:var(--ink-dim); }
+  .st-msg{ min-height:1.4em; margin-top:10px; font-size:11px; letter-spacing:2px; color:var(--toxic); }
+
+  /* desafio */
+  .daily-date{ font-family:'Bebas Neue', sans-serif; font-size:84px; line-height:.9; letter-spacing:4px; color:var(--blood-bright); text-shadow:0 0 22px rgba(209,59,53,.4); }
+  .daily-code{ font-size:11px; letter-spacing:3px; color:var(--ink-dim); margin:6px 0 14px; }
+  .stats3{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+  .stat3{ border:1px dashed rgba(201,196,168,.3); padding:10px 8px; text-align:center; }
+  .stat3 b{ display:block; font-family:'Bebas Neue', sans-serif; font-weight:400; font-size:30px; letter-spacing:2px; color:var(--ink); }
+  .stat3 span{ font-size:9.5px; letter-spacing:2px; color:var(--ink-dim); }
+  .count{ margin-top:12px; font-size:11px; letter-spacing:3px; color:var(--toxic); }
+  table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+  th{ text-align:left; font-size:10px; letter-spacing:2px; color:var(--ink-dim); font-weight:500; padding:4px 6px; border-bottom:1px solid rgba(201,196,168,.3); }
+  td{ padding:5px 6px; border-bottom:1px dashed rgba(201,196,168,.18); color:var(--ink-dim); }
+  td.same{ color:var(--toxic); } td.diff{ color:var(--ink-dim); opacity:.75; }
+  td.n{ width:34px; color:var(--ink-dim); }
+  tr.me td{ color:var(--amber); } tr.top td.n{ color:var(--amber); }
+  #card{ width:100%; height:auto; display:block; border:1px solid rgba(201,196,168,.3); }
+  .sumline{ margin:10px 0 0; font-size:11.5px; letter-spacing:1px; color:var(--ink); }
+
+  /* álbum */
+  .prog{ height:12px; border:1px solid rgba(201,196,168,.3); background:rgba(0,0,0,.5); padding:1px; margin:6px 0 4px; }
+  .prog > div{ height:100%; background:linear-gradient(90deg,#8a6a1f,var(--amber)); transition:width .6s cubic-bezier(.2,.8,.2,1); }
+  .prog-label{ font-size:11px; letter-spacing:2px; color:var(--ink-dim); }
+  .ep-title{ font-size:12px; letter-spacing:3px; color:var(--blood-bright); margin:22px 0 10px; display:flex; justify-content:space-between; }
+  .ep-title span{ color:var(--ink-dim); }
+  .ends{ display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px; }
+  .end{ border:1px solid rgba(201,196,168,.3); background:rgba(16,20,15,.55); }
+  .end .viewport{ height:120px; border-bottom:1px solid rgba(201,196,168,.3); }
+  .end.lock .viewport .scene-art{ filter:brightness(0) contrast(2); opacity:.55; }
+  .end.lock .viewport::after{ background:radial-gradient(ellipse at center, rgba(8,11,8,.2), rgba(8,11,8,.9)); }
+  .end .lockmark{ position:absolute; inset:0; z-index:3; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue', sans-serif; font-size:54px; letter-spacing:6px; color:rgba(201,196,168,.5); }
+  .end-body2{ padding:12px 14px 14px; }
+  .end-body2 h3{ margin:0 0 6px; font-family:'Bebas Neue', sans-serif; font-weight:400; font-size:24px; letter-spacing:2px; color:var(--ink); }
+  .end.lock h3{ color:var(--ink-dim); }
+  .end-body2 p{ margin:0; font-size:12px; line-height:1.7; color:var(--ink-dim); }
+  .end-body2 .hint{ font-size:10.5px; letter-spacing:2px; color:var(--toxic); margin-top:8px; }
+  .banner{ display:none; border:1px solid var(--amber); background:rgba(201,155,46,.1); color:var(--amber); padding:12px 14px; letter-spacing:2px; font-size:12px; margin-bottom:14px; animation:optIn .4s ease-out both; }
+  .banner.on{ display:block; }
+  .banner small{ display:block; margin-top:6px; color:var(--ink-dim); letter-spacing:1px; font-size:11px; }
+</style>
+</head>
+<body>
+<h1>CINZAS — TESTE: DESAFIO DO DIA E ÁLBUM</h1>
+<div class="tabs">
+  <button class="tab on" data-tab="daily">DESAFIO DO DIA</button>
+  <button class="tab" data-tab="album">ÁLBUM DE FINAIS</button>
+</div>
+
+<!-- ======================= DESAFIO DO DIA ======================= -->
+<section class="page on" id="p-daily">
+  <div class="grid2">
+    <div class="stack">
+      <div class="box">
+        <h2>// TELA INICIAL — DESAFIO DE HOJE</h2>
+        <div class="daily-date" id="dDate">--/--</div>
+        <div class="daily-code" id="dCode">CZ-</div>
+        <div class="stats3">
+          <div class="stat3"><b id="dStreak">0</b><span>SEQUÊNCIA (DIAS)</span></div>
+          <div class="stat3"><b id="dBest">--</b><span>MELHOR DO DIA</span></div>
+          <div class="stat3"><b id="dTries">0</b><span>TENTATIVAS</span></div>
+        </div>
+        <div class="count" id="dCount"></div>
+        <div class="btns">
+          <button class="continue-btn start-btn" id="playBtn" style="flex:1 1 100%; max-width:none; margin:0">▶ JOGAR DESAFIO (SIMULAR PARTIDA)</button>
+          <button class="btn" id="dReset">ZERAR REGISTRO</button>
+        </div>
+        <p class="note">Página de teste: o botão simula uma partida com escolhas ao acaso. No jogo, o desafio já está na tela inicial.</p>
+        <div class="row" style="margin-top:14px"><span>TESTAR DATA</span><input type="date" id="fDate"></div>
+        <div class="row"><span>SEU NOME</span><input id="fName" value="Valeria" maxlength="20"></div>
+        <div class="st-msg" id="dStatus" role="status"></div>
+      </div>
+
+      <div class="box">
+        <h2>// RANKING DO DIA — AMIGOS</h2>
+        <textarea id="paste" placeholder="Cole aqui as mensagens que seus amigos enviaram (uma por linha)…"></textarea>
+        <div class="btns"><button class="btn" id="demoPaste">PREENCHER EXEMPLO</button></div>
+        <table id="rank" style="margin-top:12px"></table>
+        <p class="note">Sem servidor, o ranking nasce das mensagens de compartilhar. Só entram as mensagens da data selecionada.</p>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="box">
+        <h2>// CARTÃO DO DESAFIO</h2>
+        <canvas id="card" width="1080" height="1350"></canvas>
+        <div class="btns">
+          <button class="btn" id="shareBtn">↗ COMPARTILHAR</button>
+          <a class="btn" id="waBtn" href="#" target="_blank" rel="noopener">WHATSAPP</a>
+          <button class="btn" id="copyBtn">COPIAR TEXTO</button>
+        </div>
+        <div class="note" id="shareText" style="white-space:pre-wrap; color:var(--ink)"></div>
+      </div>
+
+      <div class="box">
+        <h2>// A MESMA ROTA PARA TODOS?</h2>
+        <p class="note" style="margin:0 0 10px">Dois jogadores simulados na mesma data, com escolhas diferentes. Verde = o mesmo evento no mesmo dia.</p>
+        <table id="cmp"></table>
+        <p class="sumline" id="cmpSum"></p>
+        <div class="btns"><button class="btn" id="cmpBtn">SORTEAR DOIS JOGADORES DE NOVO</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= ÁLBUM DE FINAIS ======================= -->
+<section class="page" id="p-album">
+  <div class="box">
+    <h2>// ÁLBUM DE FINAIS</h2>
+    <div class="banner" id="banner"></div>
+    <div class="prog-label" id="progLabel"></div>
+    <div class="prog"><div id="progBar" style="width:0"></div></div>
+    <div class="btns">
+      <button class="btn" id="aSim">▶ SIMULAR UM EPISÓDIO</button>
+      <button class="btn" id="aAll">REVELAR TUDO</button>
+      <button class="btn" id="aReset">ZERAR ÁLBUM</button>
+    </div>
+    <p class="note">Cada episódio tem 3 finais e vários caminhos para chegar neles. Os não vistos ficam bloqueados, com uma dica de quantos caminhos levam até lá. "Simular um episódio" percorre um episódio ao acaso, como aconteceria numa partida.</p>
+    <div id="albumList"></div>
+  </div>
+</section>
+
+<script type="module">
+import { dateKey, labelOf, codeOf, msUntilNext, simulateRun, getDay, recordRun, resetDaily, streak, parseResults } from './js/daily.js';
+import { albumView, totals, markEnding, revealAll, resetAlbum, randomWalk } from './js/album.js';
+import { drawShareCard, buildShareText, shareResult, copyText, whatsappUrl } from './js/share.js';
+import { sceneHTML } from './js/scenes.js';
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+
+/* abas */
+document.querySelectorAll(".tab").forEach(b => b.onclick = ()=>{
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t === b));
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id === "p-" + b.dataset.tab));
+});
+
+/* ============ DESAFIO DO DIA ============ */
+$("fDate").value = dateKey();
+let last = null;           // último resultado simulado { day, cause } do dia selecionado
+let bestCache = 0;         // melhor do dia selecionado (atualizado em renderHeader)
+const key = ()=> $("fDate").value || dateKey();
+const shareData = ()=> ({ name:$("fName").value.trim() || "Sobrevivente", day:last?.day ?? (bestCache || 1), cause:last?.cause || "", daily:labelOf(key()) });
+const say = t => { $("dStatus").textContent = t; clearTimeout(say.t); say.t = setTimeout(()=> $("dStatus").textContent = "", 3500); };
+
+async function drawCard(){
+  const src = await drawShareCard(shareData());
+  const ctx = $("card").getContext("2d"); ctx.clearRect(0, 0, 1080, 1350); ctx.drawImage(src, 0, 0);
+  $("shareText").textContent = buildShareText(shareData());
+  $("waBtn").href = whatsappUrl(shareData());
+}
+
+async function renderHeader(){
+  const k = key(), d = await getDay(k);
+  bestCache = d.best;
+  $("dDate").textContent = labelOf(k); $("dCode").textContent = codeOf(k);
+  $("dStreak").textContent = await streak(k); $("dBest").textContent = d.best ? pad(d.best) : "--"; $("dTries").textContent = d.tries;
+}
+
+function tick(){
+  const ms = msUntilNext(), h = Math.floor(ms / 3.6e6), m = Math.floor(ms % 3.6e6 / 6e4), s = Math.floor(ms % 6e4 / 1e3);
+  $("dCount").textContent = `NOVO DESAFIO EM ${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+setInterval(tick, 1000); tick();
+
+async function renderRank(){
+  const label = labelOf(key()), me = await getDay(key());
+  const list = parseResults($("paste").value, label);
+  const name = $("fName").value.trim() || "Você";
+  const rows = list.filter(r => r.name !== name).map(r => ({ ...r, me:false }));
+  if(me.best) rows.push({ name, day:me.best, me:true });
+  rows.sort((a, b) => b.day - a.day);
+  $("rank").innerHTML = rows.length
+    ? `<tr><th>#</th><th>SOBREVIVENTE</th><th>DIA</th></tr>` + rows.map((r, i) => `<tr class="${r.me ? "me" : ""}${i === 0 ? " top" : ""}"><td class="n">${pad(i + 1)}</td><td>${esc(r.name.toUpperCase())}${r.me ? " (VOCÊ)" : ""}</td><td>${pad(r.day)}</td></tr>`).join("")
+    : `<tr><td style="text-align:center; padding:14px">SEM RESULTADOS PARA ${label} AINDA.</td></tr>`;
+}
+
+function renderCmp(){
+  const k = key(), a = simulateRun(k), b = simulateRun(k);
+  const n = Math.max(a.log.length, b.log.length);
+  let same = 0, both = 0, rows = "";
+  for(let i = 0; i < n; i++){
+    const x = a.log[i], y = b.log[i];
+    const eq = x && y && x.id === y.id;
+    if(x && y){ both++; if(eq) same++; }
+    rows += `<tr><td class="n">${pad(i + 1)}</td><td class="${eq ? "same" : "diff"}">${x ? esc(x.title) : "☠ morreu"}</td><td class="${eq ? "same" : "diff"}">${y ? esc(y.title) : "☠ morreu"}</td></tr>`;
+  }
+  $("cmp").innerHTML = `<tr><th>DIA</th><th>JOGADOR A (DIA ${pad(a.day)})</th><th>JOGADOR B (DIA ${pad(b.day)})</th></tr>` + rows;
+  $("cmpSum").textContent = `MESMO EVENTO EM ${same} DE ${both} DIAS COMPARTILHADOS (${both ? Math.round(100 * same / both) : 0}%).`;
+}
+
+$("playBtn").onclick = async ()=>{
+  const r = simulateRun(key());
+  last = r; await recordRun(key(), r.day, $("fName").value.trim());
+  say(`PARTIDA SIMULADA: DIA ${pad(r.day)} — ${r.cause.toUpperCase()}.`);
+  await renderHeader(); await renderRank(); drawCard();
+};
+$("dReset").onclick = async ()=>{ await resetDaily(); last = null; await renderHeader(); await renderRank(); drawCard(); say("REGISTRO ZERADO."); };
+$("fDate").onchange = async ()=>{ last = null; await renderHeader(); await renderRank(); renderCmp(); drawCard(); };
+$("fName").oninput = ()=>{ clearTimeout($("fName").t); $("fName").t = setTimeout(async ()=>{ await renderRank(); drawCard(); }, 200); };
+$("paste").oninput = renderRank;
+$("cmpBtn").onclick = renderCmp;
+$("demoPaste").onclick = ()=>{
+  const l = labelOf(key());
+  $("paste").value = `☠ Desafio CINZAS ${l} · Marina · DIA 17 — derrubado por Fome. Consegue passar?\n☠ Desafio CINZAS ${l} · Téo · DIA 9. Consegue passar?\n☠ Desafio CINZAS ${l} · Iris · DIA 22 — derrubado por Cercado. Consegue passar?\n☠ Desafio CINZAS 01/01 · Jorge · DIA 40. (outra data — ignorado)`;
+  renderRank();
+};
+$("shareBtn").onclick = async ()=>{
+  const r = await shareResult(shareData());
+  say({ shared:"COMPARTILHADO.", cancelled:"", copied:"TEXTO COPIADO — COLE NA CONVERSA.", failed:"NÃO FOI POSSÍVEL COMPARTILHAR NESTE NAVEGADOR." }[r]);
+};
+$("copyBtn").onclick = async ()=> say(await copyText(shareData()) ? "TEXTO COPIADO." : "NÃO FOI POSSÍVEL COPIAR.");
+
+renderHeader().then(()=>{ renderRank(); drawCard(); }); renderCmp();
+
+/* ============ ÁLBUM DE FINAIS ============ */
+async function renderAlbum(){
+  const t = await totals(), view = await albumView();
+  $("progLabel").textContent = `${t.seen} DE ${t.total} FINAIS DESCOBERTOS`;
+  $("progBar").style.width = (t.total ? 100 * t.seen / t.total : 0) + "%";
+  $("albumList").innerHTML = view.map(ep => {
+    const got = ep.endings.filter(e => e.seen).length;
+    return `<div class="ep-title">${esc(ep.name)}<span>${got}/${ep.endings.length}</span></div>
+      <div class="ends">${ep.endings.map(e => `
+        <div class="end${e.seen ? "" : " lock"}">
+          <div class="viewport">${sceneHTML(e.icon)}${e.seen ? "" : `<span class="lockmark">???</span>`}<i class="vp-vc a"></i><i class="vp-vc b"></i></div>
+          <div class="end-body2">
+            <h3>${e.seen ? esc(e.title) : "FINAL BLOQUEADO"}</h3>
+            <p>${e.seen ? esc(e.text) : "Existe um desfecho aqui que você ainda não viu."}</p>
+            <div class="hint">${e.seen ? "✓ DESCOBERTO" : `${e.paths} CAMINHOS LEVAM A ESTE FINAL`}</div>
+          </div>
+        </div>`).join("")}</div>`;
+  }).join("");
+}
+function banner(html){ const b = $("banner"); b.innerHTML = html; b.classList.add("on"); b.style.animation = "none"; b.offsetHeight; b.style.animation = ""; }
+
+$("aSim").onclick = async ()=>{
+  const w = randomWalk(), r = await markEnding(w.key);
+  await renderAlbum();
+  banner(r.isNew
+    ? `★ NOVO FINAL DESCOBERTO: ${esc(w.title.toUpperCase())} <small>${esc(w.ep)} · ${r.seen} DE ${r.total} NO ÁLBUM</small>`
+    : `FINAL JÁ CONHECIDO: ${esc(w.title.toUpperCase())} <small>${esc(w.ep)} · tente escolhas diferentes para achar os que faltam</small>`);
+};
+$("aAll").onclick = async ()=>{ await revealAll(); $("banner").classList.remove("on"); renderAlbum(); };
+$("aReset").onclick = async ()=>{ await resetAlbum(); $("banner").classList.remove("on"); renderAlbum(); };
+renderAlbum();
+</script>
+</body>
+</html>

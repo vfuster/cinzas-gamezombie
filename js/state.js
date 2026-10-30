@@ -42,6 +42,7 @@ export function freshState(name){
     usedRecent: [],        // ids de eventos usados recentemente (evita repetição imediata)
     currentEvent: null,
     nextNode: null,        // próximo ato do episódio em andamento: {ep, node}
+    daily: null,           // data do desafio do dia (AAAA-MM-DD) quando a partida é um desafio
     pending: null
   };
 }

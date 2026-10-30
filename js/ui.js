@@ -5,6 +5,8 @@ import { buildHero, runBoot } from './hero.js';
 import { state, newGame, FACTIONS, randInt, pick, rollEffects, applyEffects, checkDeath } from './state.js';
 import { OPENING_EVENTS, AMBIENT_LINES, MILESTONES, pickEvent } from './events.js';
 import { shareResult, copyText, downloadCard, whatsappUrl } from './share.js';
+import { withRng, rngFor, dateKey, labelOf, codeOf, msUntilNext, getDay, recordRun, streak, parseResults, getPaste, setPaste } from './daily.js';
+import { albumView, markEnding, totals } from './album.js';
 import { fetchLeaderboard, submitToLeaderboard, loadRecord, saveRecord } from './storage.js';
 
 function escapeHtml(str){
@@ -56,7 +58,10 @@ const statNames = {saude:"Saúde", comida:"Comida", municao:"Munição", moral:"
 const app = document.getElementById("app");
 const tbDay = document.getElementById("tbDay");
 const tbLocal = document.getElementById("tbLocal");
-let typingTimer = null;
+let typingTimer = null, dailyTimer = null;
+
+/* No desafio do dia, os sorteios de cada dia de jogo usam uma semente da data (ver daily.js). */
+const seeded = (slot, fn) => state && state.daily ? withRng(rngFor(state.daily, state.day, slot), fn) : fn();
 
 function fmtDelta(k,v){
   const sign = v > 0 ? "+" : "";
@@ -65,7 +70,7 @@ function fmtDelta(k,v){
 
 /* Prepara o contêiner e a barra superior para uma tela. */
 function setScreen(kind, place, opts = {}){
-  clearInterval(typingTimer);
+  clearInterval(typingTimer); clearInterval(dailyTimer);
   app.className = "screen" + (kind === "start" ? "" : " sit") + (opts.critical ? " crit" : "");
   tbDay.textContent = state && kind !== "start" ? pad(state.day) : "--";
   tbLocal.textContent = "LOCAL: " + (place || "DESCONHECIDO");
@@ -135,6 +140,8 @@ export async function renderStart(record){
       </span>
     </label>
     <button class="continue-btn start-btn" id="beginBtn">▶ INICIAR SOBREVIVÊNCIA</button>
+    <section class="daily-box" id="dailySlot" aria-label="Desafio do dia"></section>
+    <button class="album-link" id="albumBtn" type="button">▤ ÁLBUM DE FINAIS · <span id="albumCount">--</span></button>
     ${record ? `<div class="record-line">SEU RECORDE: DIA ${pad(record.day)}${record.cause ? " — " + escapeHtml(record.cause.toUpperCase()) : ""}</div>` : ""}
     <section class="registry" id="lbSlot">${renderLeaderboardHTML([]).replace("NENHUM SOBREVIVENTE REGISTRADO.", "CARREGANDO…")}</section>
   `;
@@ -145,22 +152,106 @@ export async function renderStart(record){
   const syncCursor = ()=>{ nameMirror.textContent = nameInputEl.value || nameInputEl.placeholder; };
   nameInputEl.addEventListener("input", syncCursor);
   syncCursor();
-  document.getElementById("beginBtn").onclick = ()=>{
+  const begin = daily => {
     if(!isMusicOn()){ toggleMusic(); }
     const nameVal = document.getElementById("nameInput").value.trim();
-    newGame(nameVal);
-    state.currentEvent = pick(OPENING_EVENTS);
+    if(daily){ withRng(rngFor(daily, 0), ()=> newGame(nameVal)); state.daily = daily; }
+    else newGame(nameVal);
+    seeded(0, ()=>{ state.currentEvent = pick(OPENING_EVENTS); });
     renderEventScene();
   };
+  document.getElementById("beginBtn").onclick = ()=> begin(null);
+  document.getElementById("albumBtn").onclick = ()=> renderAlbum(record);
   fillRegistry();
+  fillDaily(begin);
+  totals().then(t => { const el = document.getElementById("albumCount"); if(el) el.textContent = `${t.seen}/${t.total}`; });
+}
+
+/* Painel do desafio do dia: data, sequência, melhor resultado, contagem regressiva e ranking dos amigos. */
+async function fillDaily(begin){
+  const slot = document.getElementById("dailySlot");
+  const key = dateKey(), label = labelOf(key);
+  const [day, seq, paste] = await Promise.all([getDay(key), streak(key), getPaste(key)]);
+  if(!slot.isConnected) return;
+  slot.innerHTML = `
+    <div class="dl-head"><span class="dl-title">// DESAFIO DO DIA</span><span class="dl-code">${codeOf(key)}</span></div>
+    <div class="dl-main">
+      <div class="dl-date">${label}</div>
+      <div class="dl-stats">
+        <div><b>${seq}</b><span>SEQUÊNCIA</span></div>
+        <div><b>${day.best ? pad(day.best) : "--"}</b><span>MELHOR DO DIA</span></div>
+        <div><b>${day.tries}</b><span>TENTATIVAS</span></div>
+      </div>
+    </div>
+    <div class="dl-count" id="dlCount"></div>
+    <button class="continue-btn start-btn" id="dailyBtn">▶ JOGAR DESAFIO DO DIA</button>
+    <details class="dl-rank">
+      <summary>RANKING DO DIA · AMIGOS</summary>
+      <textarea id="dlPaste" placeholder="Cole aqui as mensagens de resultado dos seus amigos…" aria-label="Resultados dos amigos">${escapeHtml(paste)}</textarea>
+      <div id="dlTable"></div>
+    </details>`;
+
+  const tick = ()=>{
+    const el = document.getElementById("dlCount");
+    if(!el){ clearInterval(dailyTimer); return; }
+    const ms = msUntilNext();
+    el.textContent = `NOVO DESAFIO EM ${pad(Math.floor(ms / 3.6e6))}:${pad(Math.floor(ms % 3.6e6 / 6e4))}:${pad(Math.floor(ms % 6e4 / 1e3))}`;
+  };
+  tick(); dailyTimer = setInterval(tick, 1000);
+
+  const renderRank = ()=>{
+    const text = document.getElementById("dlPaste").value;
+    const me = day.best ? { name: day.name || "Você", day: day.best, me: true } : null;
+    const rows = parseResults(text, label).filter(r => !me || r.name !== me.name);
+    if(me) rows.push(me);
+    rows.sort((a, b) => b.day - a.day);
+    document.getElementById("dlTable").innerHTML = rows.length
+      ? `<table class="dl-table"><tr><th>#</th><th>SOBREVIVENTE</th><th>DIA</th></tr>${rows.map((r, i) =>
+          `<tr class="${r.me ? "me" : ""}${i === 0 ? " top" : ""}"><td>${pad(i + 1)}</td><td>${escapeHtml(r.name.toUpperCase())}${r.me ? " (VOCÊ)" : ""}</td><td>${pad(r.day)}</td></tr>`).join("")}</table>`
+      : `<div class="dl-empty">SEM RESULTADOS PARA ${label} AINDA.</div>`;
+  };
+  renderRank();
+  document.getElementById("dlPaste").oninput = e => { setPaste(key, e.target.value); renderRank(); };
+  document.getElementById("dailyBtn").onclick = ()=> begin(key);
+}
+
+async function renderAlbum(record){
+  setScreen("scene", "ÁLBUM DE FINAIS");
+  tbDay.textContent = "--";
+  const [view, t] = await Promise.all([albumView(), totals()]);
+  app.innerHTML = `
+    <section class="scene">
+      <div class="scene-body">
+        <div class="alb-head"><h2 class="alb-title">ÁLBUM DE FINAIS</h2><span class="alb-label">${t.seen} DE ${t.total} DESCOBERTOS</span></div>
+        <div class="alb-prog"><div style="width:${t.total ? 100 * t.seen / t.total : 0}%"></div></div>
+        <p class="ambient">Cada episódio tem finais diferentes. Escolhas diferentes levam a desfechos diferentes.</p>
+        ${view.map(ep => `
+          <div class="alb-ep">${ep.name}<span>${ep.endings.filter(e => e.seen).length}/${ep.endings.length}</span></div>
+          <div class="alb-ends">${ep.endings.map(e => `
+            <div class="alb-card${e.seen ? "" : " lock"}">
+              <div class="viewport">${sceneHTML(e.icon)}${e.seen ? "" : `<span class="alb-lockmark">???</span>`}<i class="vp-vc a"></i><i class="vp-vc b"></i></div>
+              <div class="alb-body">
+                <h3>${e.seen ? e.title : "FINAL BLOQUEADO"}</h3>
+                <p>${e.seen ? e.text : "Existe um desfecho aqui que você ainda não viu."}</p>
+                <div class="alb-hint">${e.seen ? "✓ DESCOBERTO" : `${e.paths} CAMINHOS LEVAM A ESTE FINAL`}</div>
+              </div>
+            </div>`).join("")}</div>`).join("")}
+        <button class="continue-btn start-btn" id="albBack">◀ VOLTAR</button>
+      </div>
+    </section>`;
+  document.getElementById("albBack").onclick = ()=> renderStart(record);
 }
 
 function renderEventScene(){
   const ev = state.currentEvent;
-  const title = typeof ev.title === "function" ? ev.title(state) : ev.title;
-  const text = typeof ev.text === "function" ? ev.text(state) : ev.text;
-  const rawChoices = typeof ev.choices === "function" ? ev.choices(state) : ev.choices;
-  const choices = rawChoices.filter(c => !c.condition || c.condition(state)).slice(0, 4); // no máximo A–D
+  let title, text, choices;
+  seeded(3, ()=>{
+    title = typeof ev.title === "function" ? ev.title(state) : ev.title;
+    text = typeof ev.text === "function" ? ev.text(state) : ev.text;
+    const rawChoices = typeof ev.choices === "function" ? ev.choices(state) : ev.choices;
+    choices = rawChoices.filter(c => !c.condition || c.condition(state)).slice(0, 4); // no máximo A–D
+  });
+  if(ev.episode && ev.act === 3) state.endingPromise = markEnding(`${ev.episode}:${ev.nodeId}`);
   const critical = state.saude < 25 || state.comida < 25;
   const ambient = Math.random() < 0.4 ? `<div class="ambient">${pick(AMBIENT_LINES)}</div>` : "";
 
@@ -192,8 +283,9 @@ function renderEventScene(){
 }
 
 function handleChoice(choice){
-  let effectsSpec, consequenceText, deathOverride, addCompanionName, removeCompanionAt, next;
+  let effectsSpec, consequenceText, deathOverride, addCompanionName, removeCompanionAt, next, deltas;
 
+  seeded(1, ()=>{
   if(choice.resolve){
     const r = choice.resolve(state);
     effectsSpec = r.effects; consequenceText = r.text; deathOverride = r.deathOverride || null;
@@ -207,11 +299,11 @@ function handleChoice(choice){
     next = choice.next || null;
   }
 
-  const rolled = rollEffects(effectsSpec);
-  const deltas = applyEffects(rolled);
+  deltas = applyEffects(rollEffects(effectsSpec));
 
   if(addCompanionName && state.companions.length < 3) state.companions.push(addCompanionName);
   if(removeCompanionAt !== null && state.companions[removeCompanionAt] !== undefined) state.companions.splice(removeCompanionAt, 1);
+  });
 
   const deathType = checkDeath();
   const ev = state.currentEvent;
@@ -246,12 +338,22 @@ function renderConsequence(){
           ${p.text ? `<div class="result-p">${p.text}</div>` : ""}
           ${chips}
         </div>
-        ${p.episodeEnd ? `<div class="ep-end">// FIM DO EPISÓDIO — ${p.episodeEnd}</div>` : ""}
+        ${p.episodeEnd ? `<div class="ep-end">// FIM DO EPISÓDIO — ${p.episodeEnd}</div><div id="endingSlot"></div>` : ""}
         ${p.hasNext ? `<div class="ep-next">▸ A SITUAÇÃO CONTINUA NO PRÓXIMO DIA</div>` : ""}
         <button class="continue-btn start-btn" id="nextBtn">▶ CONTINUAR</button>
       </div>
     </section>
   `;
+
+  if(p.episodeEnd && state.endingPromise){
+    state.endingPromise.then(r => {
+      const slot = document.getElementById("endingSlot");
+      if(!slot || !r) return;
+      slot.innerHTML = r.isNew
+        ? `<div class="ending-banner">★ NOVO FINAL DESCOBERTO: ${p.sceneTitle.toUpperCase()}<small>${r.seen} DE ${r.total} NO ÁLBUM DE FINAIS</small></div>`
+        : `<div class="ending-banner old">FINAL JÁ CONHECIDO: ${p.sceneTitle.toUpperCase()}<small>TENTE ESCOLHAS DIFERENTES PARA ACHAR OS QUE FALTAM (${r.seen}/${r.total})</small></div>`;
+    });
+  }
 
   document.getElementById("nextBtn").onclick = async ()=>{
     if(p.deathType){
@@ -266,9 +368,12 @@ function renderConsequence(){
    evento — ou para um marco, ou para a morte, o que vier primeiro. */
 function advanceDay(){
   state.pending = null;
-  const decayEffects = { comida: -randInt(3,7) };
-  if(Math.random()*100 < Math.min(6 + state.day, 40)){ decayEffects.saude = -randInt(1,6); }
-  const decayDeltas = applyEffects(decayEffects);
+  let decayDeltas;
+  seeded(2, ()=>{
+    const decayEffects = { comida: -randInt(3,7) };
+    if(Math.random()*100 < Math.min(6 + state.day, 40)){ decayEffects.saude = -randInt(1,6); }
+    decayDeltas = applyEffects(decayEffects);
+  });
 
   state.day += 1;
 
@@ -307,7 +412,7 @@ function renderMilestone(text){
 function drawNextEvent(){
   const nn = state.nextNode;
   state.nextNode = null;
-  state.currentEvent = (nn && getEpisodeNode(nn.ep, nn.node)) || pickEvent(state);
+  seeded(0, ()=>{ state.currentEvent = (nn && getEpisodeNode(nn.ep, nn.node)) || pickEvent(state); });
   renderEventScene();
 }
 
@@ -321,7 +426,9 @@ async function renderDeath(type, override){
   const record = await loadRecord();
   await submitToLeaderboard(c.title);
 
-  const shareData = { name: state.name, day: state.day, cause: c.title };
+  const dailyKey = state.daily;
+  const dailyDay = dailyKey ? await recordRun(dailyKey, state.day, state.name) : null;
+  const shareData = { name: state.name, day: state.day, cause: c.title, daily: dailyKey ? labelOf(dailyKey) : undefined };
 
   setScreen("scene", PLACES.death);
   app.innerHTML = `
@@ -332,7 +439,8 @@ async function renderDeath(type, override){
         <div class="end-badge">FIM DE JOGO · DIA ${pad(state.day)}</div>
         <h2 class="scene-h">${c.title}</h2>
         <div class="scene-p" style="min-height:0">${c.text}</div>
-        <div class="record-line">RECORDE SALVO: DIA ${pad(record.day)}</div>
+        <div class="record-line">RECORDE SALVO: DIA ${pad(record ? record.day : state.day)}</div>
+        ${dailyDay ? `<div class="daily-line">// DESAFIO DO DIA ${labelOf(dailyKey)} · MELHOR HOJE: DIA ${pad(dailyDay.best)} · ${dailyDay.tries} ${dailyDay.tries === 1 ? "TENTATIVA" : "TENTATIVAS"}</div>` : ""}
         <button class="continue-btn start-btn" id="shareBtn">↗ COMPARTILHAR RESULTADO</button>
         <div class="share-alt">
           <a id="waBtn" href="${whatsappUrl(shareData)}" target="_blank" rel="noopener">WHATSAPP</a>

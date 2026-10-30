@@ -8,14 +8,19 @@ const rnd = ()=> (seed = (seed * 16807) % 2147483647) / 2147483647;
 
 const SITE_URL = ()=> location.origin + location.pathname.replace(/[^/]*$/, "");
 
-export function buildShareText({ day, cause }, withUrl = true){
+/* `daily` ("30/10") marca o resultado como do desafio do dia; o formato é lido por js/daily.js. */
+export function buildShareText({ name, day, cause, daily }, withUrl = true){
+  if(daily){
+    const causa = cause ? ` — derrubado por ${cause}.` : ".";
+    return `☠ Desafio CINZAS ${daily} · ${name || "Sobrevivente"} · DIA ${day}${causa} Consegue passar?` + (withUrl ? ` ${SITE_URL()}` : "");
+  }
   const dias = day === 1 ? "1 dia" : `${day} dias`;
   const causa = cause ? ` Fui derrubado por: ${cause}.` : "";
   return `☠ Sobrevivi ${dias} em CINZAS.${causa} Consegue durar mais que eu?` + (withUrl ? ` ${SITE_URL()}` : "");
 }
 
 /* Cartão 1080×1350 no mesmo clima da tela inicial: céu vermelho, ruínas e zumbis. */
-export async function drawShareCard({ name, day, cause }){
+export async function drawShareCard({ name, day, cause, daily }){
   await Promise.all([
     document.fonts.load("100px 'Bebas Neue'"),
     document.fonts.load("600 30px 'IBM Plex Mono'")
@@ -90,7 +95,7 @@ export async function drawShareCard({ name, day, cause }){
   ctx.font = "600 30px 'IBM Plex Mono', monospace"; spaced(8);
   ctx.fillText("> CINZAS", 70, 100);
   ctx.fillStyle = "#858875"; ctx.font = "500 24px 'IBM Plex Mono', monospace"; spaced(4);
-  ctx.fillText("RELATÓRIO DE SOBREVIVÊNCIA", 70, 142);
+  ctx.fillText(daily ? `DESAFIO DO DIA · ${daily}` : "RELATÓRIO DE SOBREVIVÊNCIA", 70, 142);
 
   ctx.fillStyle = "#C9C4A8"; ctx.font = "120px 'Bebas Neue', sans-serif"; spaced(10);
   ctx.fillText("SOBREVIVI", 70, 520);
