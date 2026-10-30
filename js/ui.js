@@ -59,6 +59,7 @@ const app = document.getElementById("app");
 const tbDay = document.getElementById("tbDay");
 const tbLocal = document.getElementById("tbLocal");
 let typingTimer = null, dailyTimer = null;
+let startMode = "daily";   // "daily" (rota do dia) ou "free" (rota livre); lembrado ao voltar à tela inicial
 
 /* No desafio do dia, os sorteios de cada dia de jogo usam uma semente da data (ver daily.js). */
 const seeded = (slot, fn) => state && state.daily ? withRng(rngFor(state.daily, state.day, slot), fn) : fn();
@@ -139,8 +140,12 @@ export async function renderStart(record){
         <span class="term-overlay" aria-hidden="true"><span class="term-mirror" id="nameMirror"></span><span class="term-cursor">_</span></span>
       </span>
     </label>
+    <div class="mode" role="group" aria-label="Tipo de rota">
+      <button type="button" id="modeDaily">ROTA DO DIA</button>
+      <button type="button" id="modeFree">ROTA LIVRE</button>
+    </div>
     <button class="continue-btn start-btn" id="beginBtn">▶ INICIAR SOBREVIVÊNCIA</button>
-    <section class="daily-box" id="dailySlot" aria-label="Desafio do dia"></section>
+    <div id="routeSlot"></div>
     <button class="album-link" id="albumBtn" type="button">▤ ÁLBUM DE FINAIS · <span id="albumCount">--</span></button>
     ${record ? `<div class="record-line">SEU RECORDE: DIA ${pad(record.day)}${record.cause ? " — " + escapeHtml(record.cause.toUpperCase()) : ""}</div>` : ""}
     <section class="registry" id="lbSlot">${renderLeaderboardHTML([]).replace("NENHUM SOBREVIVENTE REGISTRADO.", "CARREGANDO…")}</section>
@@ -160,21 +165,35 @@ export async function renderStart(record){
     seeded(0, ()=>{ state.currentEvent = pick(OPENING_EVENTS); });
     renderEventScene();
   };
-  document.getElementById("beginBtn").onclick = ()=> begin(null);
+  document.getElementById("beginBtn").onclick = ()=> begin(startMode === "daily" ? dateKey() : null);
+  const setMode = m => {
+    startMode = m;
+    document.getElementById("modeDaily").classList.toggle("on", m === "daily");
+    document.getElementById("modeFree").classList.toggle("on", m === "free");
+    fillRoute();
+  };
+  document.getElementById("modeDaily").onclick = ()=> setMode("daily");
+  document.getElementById("modeFree").onclick = ()=> setMode("free");
   document.getElementById("albumBtn").onclick = ()=> renderAlbum(record);
   fillRegistry();
-  fillDaily(begin);
+  setMode(startMode);
   totals().then(t => { const el = document.getElementById("albumCount"); if(el) el.textContent = `${t.seen}/${t.total}`; });
 }
 
-/* Painel do desafio do dia: data, sequência, melhor resultado, contagem regressiva e ranking dos amigos. */
-async function fillDaily(begin){
-  const slot = document.getElementById("dailySlot");
+/* Abaixo do botão: painel da rota do dia (data, sequência, melhor resultado, contagem e ranking dos amigos)
+   ou, na rota livre, uma explicação curta. */
+async function fillRoute(){
+  const slot = document.getElementById("routeSlot");
+  clearInterval(dailyTimer);
+  if(startMode === "free"){
+    slot.innerHTML = `<div class="free-box">ROTA LIVRE<br>Situações sorteadas ao acaso, diferentes a cada partida.<br>Não conta para a sequência nem para o ranking do dia.</div>`;
+    return;
+  }
   const key = dateKey(), label = labelOf(key);
   const [day, seq, paste] = await Promise.all([getDay(key), streak(key), getPaste(key)]);
-  if(!slot.isConnected) return;
-  slot.innerHTML = `
-    <div class="dl-head"><span class="dl-title">// DESAFIO DO DIA</span><span class="dl-code">${codeOf(key)}</span></div>
+  if(!slot.isConnected || startMode !== "daily") return;   // a tela mudou enquanto carregava
+  slot.innerHTML = `<section class="daily-box route-box" aria-label="Rota do dia">
+    <div class="dl-head"><span class="dl-title">// ROTA DO DIA</span><span class="dl-code">${codeOf(key)}</span></div>
     <div class="dl-main">
       <div class="dl-date">${label}</div>
       <div class="dl-stats">
@@ -184,18 +203,19 @@ async function fillDaily(begin){
       </div>
     </div>
     <div class="dl-count" id="dlCount"></div>
-    <button class="continue-btn start-btn" id="dailyBtn">▶ JOGAR DESAFIO DO DIA</button>
+    <p class="route-hint">Todo mundo enfrenta as mesmas situações hoje. Compartilhe o resultado e compare com os amigos.</p>
     <details class="dl-rank">
       <summary>RANKING DO DIA · AMIGOS</summary>
       <textarea id="dlPaste" placeholder="Cole aqui as mensagens de resultado dos seus amigos…" aria-label="Resultados dos amigos">${escapeHtml(paste)}</textarea>
       <div id="dlTable"></div>
-    </details>`;
+    </details>
+  </section>`;
 
   const tick = ()=>{
     const el = document.getElementById("dlCount");
     if(!el){ clearInterval(dailyTimer); return; }
     const ms = msUntilNext();
-    el.textContent = `NOVO DESAFIO EM ${pad(Math.floor(ms / 3.6e6))}:${pad(Math.floor(ms % 3.6e6 / 6e4))}:${pad(Math.floor(ms % 6e4 / 1e3))}`;
+    el.textContent = `NOVA ROTA EM ${pad(Math.floor(ms / 3.6e6))}:${pad(Math.floor(ms % 3.6e6 / 6e4))}:${pad(Math.floor(ms % 6e4 / 1e3))}`;
   };
   tick(); dailyTimer = setInterval(tick, 1000);
 
@@ -212,7 +232,6 @@ async function fillDaily(begin){
   };
   renderRank();
   document.getElementById("dlPaste").oninput = e => { setPaste(key, e.target.value); renderRank(); };
-  document.getElementById("dailyBtn").onclick = ()=> begin(key);
 }
 
 async function renderAlbum(record){
@@ -440,7 +459,7 @@ async function renderDeath(type, override){
         <h2 class="scene-h">${c.title}</h2>
         <div class="scene-p" style="min-height:0">${c.text}</div>
         <div class="record-line">RECORDE SALVO: DIA ${pad(record ? record.day : state.day)}</div>
-        ${dailyDay ? `<div class="daily-line">// DESAFIO DO DIA ${labelOf(dailyKey)} · MELHOR HOJE: DIA ${pad(dailyDay.best)} · ${dailyDay.tries} ${dailyDay.tries === 1 ? "TENTATIVA" : "TENTATIVAS"}</div>` : ""}
+        ${dailyDay ? `<div class="daily-line">// ROTA DO DIA ${labelOf(dailyKey)} · MELHOR HOJE: DIA ${pad(dailyDay.best)} · ${dailyDay.tries} ${dailyDay.tries === 1 ? "TENTATIVA" : "TENTATIVAS"}</div>` : ""}
         <button class="continue-btn start-btn" id="shareBtn">↗ COMPARTILHAR RESULTADO</button>
         <div class="share-alt">
           <a id="waBtn" href="${whatsappUrl(shareData)}" target="_blank" rel="noopener">WHATSAPP</a>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinzas — teste do menu unificado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/crt.css">
+<link rel="stylesheet" href="css/situacao.css">
+<link rel="stylesheet" href="css/cenas.css">
+<style>
+  /* seletor de variante (só desta página de teste) */
+  .variants{ position:sticky; top:0; z-index:50; display:flex; justify-content:center; gap:8px; padding:10px; background:rgba(8,11,8,.92); border-bottom:1px solid rgba(201,196,168,.3); }
+  .variants button{ background:transparent; border:1px solid rgba(201,196,168,.3); color:var(--ink-dim); font:inherit; font-size:11px; letter-spacing:2px; padding:8px 14px; cursor:pointer; }
+  .variants button.on{ color:var(--blood-bright); border-color:var(--blood-bright); background:rgba(122,36,32,.2); }
+  .variants-note{ max-width:760px; margin:10px auto 0; padding:0 14px; font-size:11.5px; line-height:1.7; color:var(--ink-dim); text-align:center; }
+  body{ padding-top:0; }
+
+  /* alterações propostas para a tela inicial */
+  .route-box .dl-title{ color:var(--amber); }
+  .route-hint{ margin:2px 0 10px; font-size:11px; line-height:1.6; color:var(--ink-dim); letter-spacing:.5px; }
+  .mode{ display:grid; grid-template-columns:1fr 1fr; width:100%; max-width:380px; margin:0 0 10px; border:1px solid rgba(201,196,168,.4); }
+  .mode button{ background:transparent; border:0; color:var(--ink-dim); font:inherit; font-size:11px; letter-spacing:2px; padding:10px 6px; cursor:pointer; }
+  .mode button + button{ border-left:1px solid rgba(201,196,168,.4); }
+  .mode button.on{ color:var(--amber); background:rgba(201,155,46,.12); }
+  .mode button:hover{ color:var(--ink); }
+  .free-box{ width:100%; max-width:540px; margin:26px 0 0; padding:14px 20px; border:1px dashed rgba(201,196,168,.3); font-size:11.5px; line-height:1.7; color:var(--ink-dim); text-align:center; letter-spacing:.5px; }
+  .toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:60; max-width:92vw; padding:12px 18px; background:rgba(8,11,8,.95); border:1px solid var(--amber); color:var(--amber); font-size:12px; letter-spacing:1.5px; text-align:center; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .toast.on{ opacity:1; }
+</style>
+</head>
+<body>
+<div class="variants" role="tablist" aria-label="Variante do menu">
+  <button data-v="A" class="on">A · UM BOTÃO, SEMPRE A ROTA DO DIA</button>
+  <button data-v="B">B · UM BOTÃO + ROTA DO DIA / LIVRE</button>
+</div>
+<p class="variants-note" id="note"></p>
+
+<div class="crt-frame" style="margin-top:14px">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <header class="topbar">
+    <div class="tb-brand"><span class="tb-prompt">&gt;</span> CINZAS</div>
+    <div class="tb-status">
+      <span>SISTEMA: ONLINE <b class="led"></b></span><span>DIA <span>--</span></span>
+      <span class="tb-local">LOCAL: DESCONHECIDO</span><button class="tb-sound" type="button">♪ SOM: OFF</button>
+    </div>
+  </header>
+  <main class="screen" id="app"></main>
+  <footer class="botbar"><span class="bb-prompt">&gt; <span class="term-cursor-line">_</span></span><span class="bb-version">CINZAS v1.0.0</span></footer>
+  <div class="crt-glitch" aria-hidden="true"></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+import { buildHero, runBoot } from './js/hero.js';
+import { dateKey, labelOf, codeOf, msUntilNext, getDay, streak } from './js/daily.js';
+import { totals } from './js/album.js';
+
+const app = document.getElementById("app");
+const pad = n => String(n).padStart(2, "0");
+const key = dateKey(), label = labelOf(key);
+let variant = "A", mode = "daily", timer = null;
+
+const NOTES = {
+  A: "Um único botão. Toda partida usa a rota do dia, igual para todos. Quem morre e tenta de novo joga a mesma rota para melhorar. Não existe mais partida aleatória.",
+  B: "Um único botão, com um seletor acima dele. ROTA DO DIA mostra o painel com sequência e ranking. ROTA LIVRE joga como antes, com sorteio aleatório e sem registrar no desafio."
+};
+
+function toast(t){ const el = document.getElementById("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(()=> el.classList.remove("on"), 3200); }
+
+async function render(){
+  clearInterval(timer);
+  const [day, seq, alb] = await Promise.all([getDay(key), streak(key), totals()]);
+  document.getElementById("note").textContent = NOTES[variant];
+  const isDaily = variant === "A" || mode === "daily";
+
+  const panel = `
+    <section class="daily-box route-box" aria-label="Rota do dia">
+      <div class="dl-head"><span class="dl-title">// ROTA DO DIA</span><span class="dl-code">${codeOf(key)}</span></div>
+      <div class="dl-main">
+        <div class="dl-date">${label}</div>
+        <div class="dl-stats">
+          <div><b>${seq}</b><span>SEQUÊNCIA</span></div>
+          <div><b>${day.best ? pad(day.best) : "--"}</b><span>MELHOR DO DIA</span></div>
+          <div><b>${day.tries}</b><span>TENTATIVAS</span></div>
+        </div>
+      </div>
+      <div class="dl-count" id="dlCount"></div>
+      <p class="route-hint" style="margin:0">Todo mundo enfrenta as mesmas situações hoje. Compartilhe o resultado e compare com os amigos.</p>
+      <details class="dl-rank"><summary>RANKING DO DIA · AMIGOS</summary><div class="dl-empty">Aqui entram as mensagens coladas pelos amigos (igual à versão atual).</div></details>
+    </section>`;
+
+  const free = `<div class="free-box">ROTA LIVRE<br>Situações sorteadas ao acaso, diferentes a cada partida.<br>Não conta para a sequência nem para o ranking do dia.</div>`;
+
+  app.innerHTML = `
+    <section class="hero">
+      <div class="boot" id="boot" aria-hidden="true"></div>
+      <svg class="hero-art" id="heroArt" viewBox="0 0 800 340" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+      <div class="hero-fade"></div>
+      <h1 class="logo">CINZAS</h1>
+    </section>
+    <div class="tagline"><span class="rule"></span><span class="tag-text">SOBREVIVA AO APOCALIPSE</span><span class="rule"></span></div>
+    <p class="quote">“Não existe um destino.<br>Existe apenas o próximo dia.”</p>
+    <label class="term-field" for="nameInput">
+      <span class="term-prompt">&gt;</span>
+      <span class="term-input-wrap">
+        <input class="name-input" id="nameInput" placeholder="NOME DO SOBREVIVENTE" maxlength="20" autocomplete="off" spellcheck="false">
+        <span class="term-overlay" aria-hidden="true"><span class="term-mirror" id="nameMirror"></span><span class="term-cursor">_</span></span>
+      </span>
+    </label>
+    ${variant === "B" ? `<div class="mode" role="group" aria-label="Tipo de rota">
+        <button type="button" data-m="daily" class="${mode === "daily" ? "on" : ""}">ROTA DO DIA</button>
+        <button type="button" data-m="free" class="${mode === "free" ? "on" : ""}">ROTA LIVRE</button></div>` : ""}
+    <button class="continue-btn start-btn" id="beginBtn">▶ INICIAR SOBREVIVÊNCIA</button>
+    ${isDaily ? panel : free}
+    <button class="album-link" type="button" id="albumBtn">▤ ÁLBUM DE FINAIS · ${alb.seen}/${alb.total}</button>
+    <section class="registry"><i class="rc"></i><h2 class="reg-title">REGISTRO DE SOBREVIVENTES</h2><ol class="reg-list"><li class="reg-empty">(igual à tela atual)</li></ol></section>`;
+
+  buildHero(); runBoot();
+  const input = document.getElementById("nameInput"), mirror = document.getElementById("nameMirror");
+  const sync = ()=>{ mirror.textContent = input.value || input.placeholder; };
+  input.addEventListener("input", sync); sync();
+
+  document.getElementById("beginBtn").onclick = ()=> toast(isDaily ? `INICIARIA UMA PARTIDA NA ROTA DO DIA ${label}` : "INICIARIA UMA PARTIDA NA ROTA LIVRE");
+  document.getElementById("albumBtn").onclick = ()=> toast("ABRIRIA O ÁLBUM DE FINAIS");
+  app.querySelectorAll(".mode button").forEach(b => b.onclick = ()=>{ mode = b.dataset.m; render(); });
+
+  const tick = ()=>{
+    const el = document.getElementById("dlCount"); if(!el) return clearInterval(timer);
+    const ms = msUntilNext();
+    el.textContent = `NOVA ROTA EM ${pad(Math.floor(ms / 3.6e6))}:${pad(Math.floor(ms % 3.6e6 / 6e4))}:${pad(Math.floor(ms % 6e4 / 1e3))}`;
+  };
+  tick(); timer = setInterval(tick, 1000);
+}
+
+document.querySelectorAll(".variants button").forEach(b => b.onclick = ()=>{
+  variant = b.dataset.v; mode = "daily";
+  document.querySelectorAll(".variants button").forEach(x => x.classList.toggle("on", x === b));
+  render();
+});
+render();
+</script>
+</body>
+</html>

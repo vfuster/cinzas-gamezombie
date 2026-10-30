@@ -179,3 +179,19 @@
 .ending-banner small{ display:block; margin-top:5px; color:var(--ink-dim); letter-spacing:1px; font-size:10.5px; }
 .ending-banner.old{ border-color:rgba(201,196,168,.35); background:none; color:var(--ink-dim); }
 @media (max-width:560px){ .dl-main{ grid-template-columns:1fr; gap:10px; } .dl-date{ font-size:52px; } }
+
+/* ---------- seletor de rota (tela inicial) ---------- */
+.route-hint{ margin:0 0 4px; font-size:11px; line-height:1.6; color:var(--ink-dim); letter-spacing:.5px; }
+.mode{ display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; max-width:380px; margin:0 0 20px; }
+.mode button{
+  background:rgba(8,11,8,.55); border:1px solid rgba(201,196,168,.35); color:var(--ink-dim); cursor:pointer;
+  font-family:'Bebas Neue', sans-serif; font-size:18px; letter-spacing:2px; padding:9px 6px;
+  transition:border-color .2s, box-shadow .2s, color .2s, background .2s;
+}
+.mode button.on{
+  color:var(--ink); border-color:var(--blood-bright); background:rgba(122,36,32,.28);
+  box-shadow:0 0 12px rgba(209,59,53,.3), inset 0 0 10px rgba(0,0,0,.5); text-shadow:0 0 8px rgba(209,59,53,.55);
+}
+.mode button:hover, .mode button:focus-visible{ color:var(--ink); border-color:rgba(209,59,53,.7); outline:none; }
+#routeSlot{ width:100%; display:flex; flex-direction:column; align-items:center; }
+.free-box{ width:100%; max-width:540px; margin:26px 0 0; padding:14px 20px; border:1px dashed rgba(201,196,168,.3); font-size:11.5px; line-height:1.7; color:var(--ink-dim); text-align:center; letter-spacing:.5px; }

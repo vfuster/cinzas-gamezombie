@@ -4,6 +4,8 @@ Um jogo de decisões de sobrevivência num apocalipse zumbi, que roda no navegad
 
 > *"Não existe um destino. Existe apenas o próximo dia."*
 
+**▶ Jogar agora: https://vfuster.github.io/cinzas-gamezombie/**
+
 **Este é um projeto de estudo**, criado para treinar desenvolvimento web na prática, com HTML, CSS e JavaScript puros, sem frameworks e sem servidor. Desenvolvido com o apoio do Claude Code (IA) como ferramenta de estudo.
 
 ## Como jogar
@@ -11,7 +13,7 @@ Um jogo de decisões de sobrevivência num apocalipse zumbi, que roda no navegad
 Cada dia traz uma situação com até 4 escolhas, e cada escolha muda seus atributos e o rumo da história. Se a saúde ou a comida chegar a zero, a partida acaba.
 
 - **Episódios em 3 atos:** histórias com começo, meio e fim, que mudam conforme as suas escolhas.
-- **Desafio do dia:** todo mundo joga a mesma rota no mesmo dia, para comparar com os amigos.
+- **Rota do dia:** todo mundo joga a mesma rota no mesmo dia, para comparar com os amigos. Na **rota livre**, as situações são sorteadas ao acaso.
 - **Álbum de finais:** cada episódio tem finais diferentes para descobrir.
 - **Compartilhar:** gera um cartão com o seu resultado.
 
