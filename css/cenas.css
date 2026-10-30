@@ -121,3 +121,12 @@
 .ep-next{ color:var(--toxic); }
 
 @media (prefers-reduced-motion: reduce){ .viewport.hit, .viewport.hit::before, .viewport.good::before{ animation:none; } }
+
+/* ---------- compartilhar resultado (tela de fim de jogo) ---------- */
+.share-alt{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:10px; }
+.share-alt button, .share-alt a{
+  background:transparent; border:1px solid rgba(201,196,168,.35); color:var(--ink-dim); font:inherit; font-size:11px; letter-spacing:2px;
+  padding:10px 6px; cursor:pointer; text-align:center; text-decoration:none;
+}
+.share-alt button:hover, .share-alt a:hover, .share-alt button:focus-visible, .share-alt a:focus-visible{ color:var(--ink); border-color:var(--ink); outline:none; }
+.share-status{ min-height:1.4em; margin-top:10px; font-size:11px; letter-spacing:2px; color:var(--toxic); }

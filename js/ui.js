@@ -4,6 +4,7 @@ import { getEpisodeNode, resolveCompanion } from './episodes.js';
 import { buildHero, runBoot } from './hero.js';
 import { state, newGame, FACTIONS, randInt, pick, rollEffects, applyEffects, checkDeath } from './state.js';
 import { OPENING_EVENTS, AMBIENT_LINES, MILESTONES, pickEvent } from './events.js';
+import { shareResult, copyText, downloadCard, whatsappUrl } from './share.js';
 import { fetchLeaderboard, submitToLeaderboard, loadRecord, saveRecord } from './storage.js';
 
 function escapeHtml(str){
@@ -320,6 +321,8 @@ async function renderDeath(type, override){
   const record = await loadRecord();
   await submitToLeaderboard(c.title);
 
+  const shareData = { name: state.name, day: state.day, cause: c.title };
+
   setScreen("scene", PLACES.death);
   app.innerHTML = `
     ${renderHUD()}
@@ -330,11 +333,29 @@ async function renderDeath(type, override){
         <h2 class="scene-h">${c.title}</h2>
         <div class="scene-p" style="min-height:0">${c.text}</div>
         <div class="record-line">RECORDE SALVO: DIA ${pad(record.day)}</div>
+        <button class="continue-btn start-btn" id="shareBtn">↗ COMPARTILHAR RESULTADO</button>
+        <div class="share-alt">
+          <a id="waBtn" href="${whatsappUrl(shareData)}" target="_blank" rel="noopener">WHATSAPP</a>
+          <button id="copyBtn" type="button">COPIAR TEXTO</button>
+          <button id="dlBtn" type="button">BAIXAR IMAGEM</button>
+        </div>
+        <div class="share-status" id="shareStatus" role="status"></div>
         <button class="continue-btn start-btn" id="restartBtn">▶ TENTAR NOVAMENTE</button>
       </div>
     </section>
     <section class="registry" id="lbSlot">${renderLeaderboardHTML([]).replace("NENHUM SOBREVIVENTE REGISTRADO.", "CARREGANDO…")}</section>
   `;
+  let statusTimer;
+  const say = t => {
+    const el = document.getElementById("shareStatus");
+    el.textContent = t; clearTimeout(statusTimer); statusTimer = setTimeout(()=> el.textContent = "", 3500);
+  };
+  document.getElementById("shareBtn").onclick = async ()=>{
+    const r = await shareResult(shareData);
+    say({ shared:"COMPARTILHADO.", cancelled:"", copied:"TEXTO COPIADO — COLE NA CONVERSA.", failed:"NÃO FOI POSSÍVEL COMPARTILHAR NESTE NAVEGADOR." }[r]);
+  };
+  document.getElementById("copyBtn").onclick = async ()=> say(await copyText(shareData) ? "TEXTO COPIADO." : "NÃO FOI POSSÍVEL COPIAR.");
+  document.getElementById("dlBtn").onclick = ()=> downloadCard(shareData).then(()=> say("IMAGEM BAIXADA."));
   document.getElementById("restartBtn").onclick = ()=> renderStart(record);
   fillRegistry();
 }

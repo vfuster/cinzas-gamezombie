@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinzas — teste de compartilhar</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/crt.css">
+<link rel="stylesheet" href="css/situacao.css">
+<style>
+  h1{ font-family:'Bebas Neue', sans-serif; font-weight:400; letter-spacing:4px; text-align:center; color:var(--ink); margin:8px 0 18px; }
+  .wrap{ display:grid; grid-template-columns:minmax(300px, 460px) minmax(300px, 1fr); gap:24px; max-width:1000px; margin:0 auto; align-items:start; }
+  @media (max-width:760px){ .wrap{ grid-template-columns:1fr; } }
+  .box{ border:1px solid rgba(201,196,168,.3); background:rgba(16,20,15,.55); padding:18px 20px; }
+  .box h2{ margin:0 0 12px; font-size:11px; letter-spacing:3px; color:var(--amber); font-weight:600; }
+  #card{ width:100%; height:auto; display:block; border:1px solid rgba(201,196,168,.3); }
+  .row{ display:grid; grid-template-columns:90px 1fr; gap:10px; align-items:center; margin-bottom:10px; font-size:11px; letter-spacing:2px; color:var(--ink-dim); }
+  .row input{ background:rgba(0,0,0,.4); border:1px solid rgba(201,196,168,.35); color:var(--ink); font:inherit; font-size:13px; padding:7px 10px; width:100%; }
+  .btns{ display:flex; flex-direction:column; gap:10px; margin-top:16px; }
+  .share-btn{ width:100%; max-width:none; margin:0; }
+  .alt{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+  .alt button, .alt a{
+    background:transparent; border:1px solid rgba(201,196,168,.35); color:var(--ink-dim); font:inherit; font-size:11px; letter-spacing:2px;
+    padding:10px 6px; cursor:pointer; text-align:center; text-decoration:none;
+  }
+  .alt button:hover, .alt a:hover{ color:var(--ink); border-color:var(--ink); }
+  #status{ min-height:1.4em; margin-top:12px; font-size:11px; letter-spacing:2px; color:var(--toxic); }
+  .msg{ white-space:pre-wrap; font-size:12.5px; line-height:1.7; color:var(--ink); border:1px dashed rgba(201,196,168,.35); padding:10px 12px; margin-top:12px; }
+  .mock .scene-h{ color:var(--blood-bright); }
+  .note{ font-size:11px; color:var(--ink-dim); line-height:1.7; margin-top:14px; }
+</style>
+</head>
+<body>
+<h1>CINZAS — TESTE DE COMPARTILHAR</h1>
+<div class="wrap">
+  <div>
+    <div class="box">
+      <h2>// CARTÃO GERADO</h2>
+      <canvas id="card" width="1080" height="1350"></canvas>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:18px">
+    <div class="box mock">
+      <h2>// SIMULAÇÃO DA TELA DE FIM DE JOGO</h2>
+      <div class="end-badge">FIM DE JOGO · DIA <span id="mDay">14</span></div>
+      <h3 class="scene-h" id="mCause" style="font-size:34px; margin:0 0 10px">Fome</h3>
+      <div class="scene-p" style="min-height:0" id="mText"></div>
+      <div class="record-line" style="margin-top:12px">RECORDE SALVO: DIA <span id="mRec">14</span></div>
+      <div class="btns">
+        <button class="continue-btn start-btn share-btn" id="shareBtn">↗ COMPARTILHAR RESULTADO</button>
+        <div class="alt">
+          <a id="waBtn" href="#" target="_blank" rel="noopener">WHATSAPP</a>
+          <button id="copyBtn" type="button">COPIAR TEXTO</button>
+          <button id="dlBtn" type="button">BAIXAR IMAGEM</button>
+        </div>
+        <button class="continue-btn start-btn share-btn" id="againBtn" style="opacity:.55" disabled>▶ TENTAR NOVAMENTE</button>
+      </div>
+      <div id="status" role="status"></div>
+      <div class="msg" id="shareText"></div>
+    </div>
+
+    <div class="box">
+      <h2>// DADOS DE TESTE</h2>
+      <label class="row">NOME<input id="fName" value="Valeria" maxlength="20"></label>
+      <label class="row">DIAS<input id="fDay" type="number" min="1" max="999" value="14"></label>
+      <label class="row">CAUSA<input id="fCause" value="Fome" maxlength="30"></label>
+      <p class="note">
+        COMPARTILHAR abre a folha de compartilhamento do aparelho com a imagem e o texto (celular e Safari).
+        No computador sem suporte, copia o texto. WHATSAPP, COPIAR TEXTO e BAIXAR IMAGEM funcionam em qualquer lugar.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { drawShareCard, buildShareText, shareResult, copyText, downloadCard, whatsappUrl } from './js/share.js';
+
+const $ = id => document.getElementById(id);
+const data = ()=> ({ name:$("fName").value.trim() || "o sobrevivente", day:Math.max(1, parseInt($("fDay").value, 10) || 1), cause:$("fCause").value.trim() });
+let timer, token = 0;
+
+async function refresh(){
+  const d = data(), my = ++token;
+  $("mDay").textContent = $("mRec").textContent = String(d.day).padStart(2, "0");
+  $("mCause").textContent = d.cause || "—";
+  $("mText").textContent = `O corpo de ${d.name} não aguentou mais. Em algum lugar da estrada, tudo parou.`;
+  $("shareText").textContent = buildShareText(d);
+  $("waBtn").href = whatsappUrl(d);
+  const src = await drawShareCard(d);
+  if(my !== token) return;
+  const ctx = $("card").getContext("2d"); ctx.clearRect(0, 0, 1080, 1350); ctx.drawImage(src, 0, 0);
+}
+const say = t => { $("status").textContent = t; clearTimeout(timer); timer = setTimeout(()=> $("status").textContent = "", 3500); };
+
+["fName","fDay","fCause"].forEach(id => $(id).addEventListener("input", ()=>{ clearTimeout(refresh.t); refresh.t = setTimeout(refresh, 150); }));
+$("shareBtn").onclick = async ()=>{
+  const r = await shareResult(data());
+  say({ shared:"COMPARTILHADO.", cancelled:"CANCELADO.", copied:"TEXTO COPIADO — COLE NA CONVERSA.", failed:"NÃO FOI POSSÍVEL COMPARTILHAR NESTE NAVEGADOR." }[r]);
+};
+$("copyBtn").onclick = async ()=> say(await copyText(data()) ? "TEXTO COPIADO." : "NÃO FOI POSSÍVEL COPIAR.");
+$("dlBtn").onclick = ()=> downloadCard(data()).then(()=> say("IMAGEM BAIXADA."));
+refresh();
+</script>
+</body>
+</html>
