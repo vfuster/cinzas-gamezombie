@@ -41,6 +41,7 @@ export function freshState(name){
     rep: { comerciantes:0, andarilhos:0, refugio:0, milicia:0 },
     usedRecent: [],        // ids de eventos usados recentemente (evita repetição imediata)
     currentEvent: null,
+    nextNode: null,        // próximo ato do episódio em andamento: {ep, node}
     pending: null
   };
 }

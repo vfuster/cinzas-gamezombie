@@ -1,5 +1,6 @@
 import { toggleMusic, isMusicOn } from './audio.js';
-import { renderIllustration } from './illustrations.js';
+import { sceneHTML } from './scenes.js';
+import { getEpisodeNode, resolveCompanion } from './episodes.js';
 import { buildHero, runBoot } from './hero.js';
 import { state, newGame, FACTIONS, randInt, pick, rollEffects, applyEffects, checkDeath } from './state.js';
 import { OPENING_EVENTS, AMBIENT_LINES, MILESTONES, pickEvent } from './events.js';
@@ -104,9 +105,10 @@ function renderHUD(){
   </section>`;
 }
 
-function viewportHTML(icon){
-  return `<div class="viewport">
-    ${renderIllustration(icon)}
+/* mood: "hit" (perdeu saúde) ou "good" (só ganhos) — anima a cena na tela de resultado. */
+function viewportHTML(icon, mood = ""){
+  return `<div class="viewport${mood ? " " + mood : ""}">
+    ${sceneHTML(icon)}
     <span class="vp-tag">LOCAL: ${PLACES[icon] || "DESCONHECIDO"}</span>
     <span class="vp-rec">REC</span>
     <i class="vp-vc a"></i><i class="vp-vc b"></i>
@@ -157,7 +159,7 @@ function renderEventScene(){
   const title = typeof ev.title === "function" ? ev.title(state) : ev.title;
   const text = typeof ev.text === "function" ? ev.text(state) : ev.text;
   const rawChoices = typeof ev.choices === "function" ? ev.choices(state) : ev.choices;
-  const choices = rawChoices.filter(c => !c.condition || c.condition(state));
+  const choices = rawChoices.filter(c => !c.condition || c.condition(state)).slice(0, 4); // no máximo A–D
   const critical = state.saude < 25 || state.comida < 25;
   const ambient = Math.random() < 0.4 ? `<div class="ambient">${pick(AMBIENT_LINES)}</div>` : "";
 
@@ -189,17 +191,19 @@ function renderEventScene(){
 }
 
 function handleChoice(choice){
-  let effectsSpec, consequenceText, deathOverride, addCompanionName, removeCompanionAt;
+  let effectsSpec, consequenceText, deathOverride, addCompanionName, removeCompanionAt, next;
 
   if(choice.resolve){
     const r = choice.resolve(state);
     effectsSpec = r.effects; consequenceText = r.text; deathOverride = r.deathOverride || null;
-    addCompanionName = r.addCompanionName || null;
+    addCompanionName = resolveCompanion(r, state);
     removeCompanionAt = r.removeCompanionAt !== undefined ? r.removeCompanionAt : null;
+    next = r.next || choice.next || null;
   } else {
     effectsSpec = choice.effects; consequenceText = choice.consequence; deathOverride = choice.deathOverride || null;
-    addCompanionName = choice.addCompanionName || null;
+    addCompanionName = resolveCompanion(choice, state);
     removeCompanionAt = null;
+    next = choice.next || null;
   }
 
   const rolled = rollEffects(effectsSpec);
@@ -212,7 +216,10 @@ function handleChoice(choice){
   const ev = state.currentEvent;
   const curTitle = typeof ev.title === "function" ? ev.title(state) : ev.title;
 
-  state.pending = { text: consequenceText, deltas, deathType, deathOverride, sceneIcon: ev.icon, sceneTitle: curTitle };
+  state.nextNode = ev.episode && next ? { ep: ev.episode, node: next } : null;
+  const episodeEnd = ev.episode && !next ? ev.epName : null;
+
+  state.pending = { text: consequenceText, deltas, deathType, deathOverride, sceneIcon: ev.icon, sceneTitle: curTitle, episodeEnd, hasNext: !!state.nextNode };
   renderConsequence();
 }
 
@@ -222,11 +229,14 @@ function renderConsequence(){
     p.deltas.map(d=>`<span class="delta ${d.v>0?'up':'down'}">${fmtDelta(d.k,d.v)}</span>`).join("")
   }</div>` : "";
 
+  const lostHealth = p.deltas.some(d => d.k === "saude" && d.v < 0);
+  const mood = lostHealth ? "hit" : (p.deltas.length && p.deltas.every(d => d.v > 0) ? "good" : "");
+
   setScreen("scene", PLACES[p.sceneIcon]);
   app.innerHTML = `
     ${renderHUD()}
     <section class="scene">
-      ${viewportHTML(p.sceneIcon)}
+      ${viewportHTML(p.sceneIcon, mood)}
       <div class="scene-body">
         <div class="scene-kicker">// RESULTADO</div>
         <h2 class="scene-h">${p.sceneTitle}</h2>
@@ -235,6 +245,8 @@ function renderConsequence(){
           ${p.text ? `<div class="result-p">${p.text}</div>` : ""}
           ${chips}
         </div>
+        ${p.episodeEnd ? `<div class="ep-end">// FIM DO EPISÓDIO — ${p.episodeEnd}</div>` : ""}
+        ${p.hasNext ? `<div class="ep-next">▸ A SITUAÇÃO CONTINUA NO PRÓXIMO DIA</div>` : ""}
         <button class="continue-btn start-btn" id="nextBtn">▶ CONTINUAR</button>
       </div>
     </section>
@@ -290,8 +302,11 @@ function renderMilestone(text){
   document.getElementById("nextBtn").onclick = ()=> drawNextEvent();
 }
 
+/* Se há um episódio em andamento, o próximo ato vem antes de qualquer sorteio. */
 function drawNextEvent(){
-  state.currentEvent = pickEvent(state);
+  const nn = state.nextNode;
+  state.nextNode = null;
+  state.currentEvent = (nn && getEpisodeNode(nn.ep, nn.node)) || pickEvent(state);
   renderEventScene();
 }
 
